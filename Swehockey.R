@@ -144,12 +144,8 @@ player_lookup <- read.csv("player_lookup.csv", stringsAsFactors = FALSE)
 
 player_lookup_1920 <- read.csv("player_lookup_1920.csv", stringsAsFactors = FALSE)
 
-player_lookup_1920_update <- tibble(swehockey = c("Casper Siösteen", "William Eklund", "Gabriel Säll",
-                                                  "Ludwig Persson", "Karl Henriksson", "Radek Muzik",
-                                                  "Yohann Auvitu"),
-                                    shlse = c("Casper Siösteen", "William Eklund", "Gabriel Säll",
-                                              "Ludwig Persson", "Karl Henriksson", "Radek Muzik",
-                                              "Yohann Auvitu"))
+player_lookup_1920_update <- tibble(swehockey = c("John Persson"),
+                                    shlse = c("John Persson"))
 
 player_lookup_1920 <- rbind(player_lookup_1920, player_lookup_1920_update) 
 
@@ -381,13 +377,14 @@ for(id in gameID_table_1920$id[1:237]) {
   
 }
 
+
 #manual edits
 #lineup_data_1920v2 <- read.csv("lineup_data_1920_v2.csv")
 #lineup_data_1920v2 <- read.csv("lineup_data_1920_v3.csv")
 lineup_data_1920 <- read_csv("lineup_data_1920.csv")
 
 lineup_data_1920_update <- c()
-for(id in gameID_table_1920$id[238:239]) {
+for(id in gameID_table_1920$id[255:260]) {
 
   temp <- get_lineup(id)
 
@@ -407,7 +404,17 @@ lineup_data_1920_update <- read.csv("lineup_data_1920_update.csv",  stringsAsFac
 #join updated lineup data with existing base
 lineup_data_1920 <- rbind(lineup_data_1920, lineup_data_1920_update)
 
-
+ha_lineup_data_1920 <- c()
+for(id in ha_gameID_table$id[1:273]) {
+  
+  temp <- get_lineup(id)
+  
+  ha_lineup_data_1920 <- rbind(ha_lineup_data_1920, temp)
+  
+  print(id)
+  rm(temp)
+  
+}
 
 #rbind.fill(lineup_data_1920v2, lineup_add) -> lineup_data_1920v2
 
@@ -1191,7 +1198,7 @@ for (id in gameID_table_1920$id[1:204]) {
 }
 
 box_score_data_1920_raw <- c()
-for (id in gameID_table_1920$id[1:239]) {
+for (id in gameID_table_1920$id[1:260]) {
   
   temp <- get_box_score(id)
   
@@ -1369,189 +1376,9 @@ box_score_data_1920_condensed <- box_score_data_1920_raw %>%
 
 # Player Stats ------------------------------------------------------------
 
-#All Situations Data
-get_all_sits_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'All Sits.', manpower = 'All Sits.', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'All Sits.', manpower = 'All Sits.', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-
-}
-
-player_all_sits_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_all_sits_data(player)
-  
-  player_all_sits_data <- rbind(player_all_sits_data, temp)
-  
-  print(player)
-  
-}
-
-#All EV Data
-get_ev_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation_general == 'EV') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation_general == 'EV') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation_general == 'EV') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation_general == 'EV') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation_general == 'EV') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'EV', manpower = 'EV', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation_general == 'EV') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation_general == 'EV') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation_general == 'EV') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation_general == 'EV') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation_general == 'EV') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'EV', manpower = 'EV', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
-
-player_ev_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_ev_data(player)
-  
-  player_ev_data <- rbind(player_ev_data, temp)
-  
-  print(player)
-  
-}
+#Imports
+player_toi_data_1920 <- read.csv("player_toi_data_1920.csv", header = TRUE)
+player_corsi_data_1920 <- read.csv("player_corsi_data_1920.csv", header = TRUE)
 
 #5v5 Data
 get_5v5_data <- function(player) {
@@ -1560,19 +1387,142 @@ get_5v5_data <- function(player) {
     filter(swehockey_name == player) %>%
     nrow()
   
+  fenwick_data <- player_corsi_data_1920 %>%
+    filter(swehockey_name == player) %>%
+    select(FF, FA)
+  
+  FF <- sum(fenwick_data$FF)
+  FA <- sum(fenwick_data$FA)
+
   G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
+    filter(goal == player) %>%
     filter(game_situation == '5v5') %>%
+    nrow()
+
+  A1 <- box_score_data_1920_condensed %>%
+    filter(primary_assist == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+
+  A2 <- box_score_data_1920_condensed %>%
+    filter(secondary_assist == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+
+  A <- A1 + A2
+
+  P1 <- G + A1
+
+  P <- G + A
+
+  GF1 <- box_score_data_1920_condensed %>%
+    filter(GF1_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GF2 <- box_score_data_1920_condensed %>%
+    filter(GF2_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GF3 <- box_score_data_1920_condensed %>%
+    filter(GF3_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GF4 <- box_score_data_1920_condensed %>%
+    filter(GF4_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GF5 <- box_score_data_1920_condensed %>%
+    filter(GF5_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GF6 <- box_score_data_1920_condensed %>%
+    filter(GF6_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  
+  GF = GF1 + GF2 + GF3 + GF4 + GF5 + GF6
+  
+  GA1 <- box_score_data_1920_condensed %>%
+    filter(GA1_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GA2 <- box_score_data_1920_condensed %>%
+    filter(GA2_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GA3 <- box_score_data_1920_condensed %>%
+    filter(GA3_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GA4 <- box_score_data_1920_condensed %>%
+    filter(GA4_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GA5 <- box_score_data_1920_condensed %>%
+    filter(GA5_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  GA6 <- box_score_data_1920_condensed %>%
+    filter(GA6_name == player) %>%
+    filter(game_situation == '5v5') %>%
+    nrow()
+  
+  GA = GA1 + GA2 + GA3 + GA4 + GA5 + GA6
+
+  `GF%` <- GF / (GF + GA)
+  `GF%` <- round(`GF%` * 100, 1)
+
+  IPP <- P / GF
+  IPP <- round(IPP * 100, 1)
+  
+  FenSh <- round(GF/FF,3)
+  FenSv <- 1 - round(GA/FA,3)
+
+  data <- tibble(player = player, situation = 'EV', manpower = '5v5', GP = GP, G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+                 IPP = IPP, FenSh = FenSh, FenSv = FenSv)
+
+  data <- merge(data, player_toi_data_1920[,c("swehockey_name", "shlse_team_name", "Pos")],
+        by.x = "player", by.y = "swehockey_name") %>% unique()
+  
+  data <- data %>%
+    rename(Team = shlse_team_name) %>%
+    .[,c(1,17,18,2:16)]
+
+  return(data)
+
+}
+
+player_5v5_data <- c()
+for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+
+  temp <- get_5v5_data(player)
+
+  player_5v5_data <- rbind(player_5v5_data, temp)
+
+  print(player)
+
+}
+
+#PP Data
+get_pp_data <- function(player) {
+  
+  GP <- player_toi_data_1920 %>%
+    filter(swehockey_name == player) %>%
+    nrow()
+  
+  G <- box_score_data_1920_condensed %>%
+    filter(goal == player) %>%
+    filter(game_situation_general == 'PP') %>%
     nrow()
   
   A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '5v5') %>%
+    filter(primary_assist == player) %>%
+    filter(game_situation_general == 'PP') %>%
     nrow()
   
   A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '5v5') %>%
+    filter(secondary_assist == player) %>%
+    filter(game_situation_general == 'PP') %>%
     nrow()
   
   A <- A1 + A2
@@ -1581,15 +1531,59 @@ get_5v5_data <- function(player) {
   
   P <- G + A
   
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '5v5') %>%
+  GF1 <- box_score_data_1920_condensed %>%
+    filter(GF1_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GF2 <- box_score_data_1920_condensed %>%
+    filter(GF2_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GF3 <- box_score_data_1920_condensed %>%
+    filter(GF3_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GF4 <- box_score_data_1920_condensed %>%
+    filter(GF4_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GF5 <- box_score_data_1920_condensed %>%
+    filter(GF5_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GF6 <- box_score_data_1920_condensed %>%
+    filter(GF6_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
     nrow()
   
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '5v5') %>%
+  GF = GF1 + GF2 + GF3 + GF4 + GF5 + GF6
+  
+  GA1 <- box_score_data_1920_condensed %>%
+    filter(GA1_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
     nrow()
+  GA2 <- box_score_data_1920_condensed %>%
+    filter(GA2_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GA3 <- box_score_data_1920_condensed %>%
+    filter(GA3_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GA4 <- box_score_data_1920_condensed %>%
+    filter(GA4_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GA5 <- box_score_data_1920_condensed %>%
+    filter(GA5_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GA6 <- box_score_data_1920_condensed %>%
+    filter(GA6_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  
+  GA = GA1 + GA2 + GA3 + GA4 + GA5 + GA6
   
   `GF%` <- GF / (GF + GA)
   `GF%` <- round(`GF%` * 100, 1)
@@ -1597,391 +1591,15 @@ get_5v5_data <- function(player) {
   IPP <- P / GF
   IPP <- round(IPP * 100, 1)
   
-  data <- tibble(player = player, situation = 'EV', manpower = '5v5', GP = GP, G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+  data <- tibble(player = player, situation = 'PP', manpower = 'PP', GP = GP, G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
                  IPP = IPP)
   
-  if(player == 'Jesper Jensen') {
-    
-    GP <- player_toi_data_1920 %>%
-      filter(swehockey_name == 'Jesper Jensen') %>%
-      nrow()
-    
-    G <- box_score_data_1920_condensed %>%
-      filter(goal == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    
-    A1 <- box_score_data_1920_condensed %>%
-      filter(primary_assist == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    
-    A2 <- box_score_data_1920_condensed %>%
-      filter(secondary_assist == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    
-    A <- A1 + A2
-    
-    P1 <- G + A1
-    
-    P <- G + A
-    
-    GF1 <- box_score_data_1920_condensed %>%
-      filter(GF1_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GF2 <- box_score_data_1920_condensed %>%
-      filter(GF2_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GF3 <- box_score_data_1920_condensed %>%
-      filter(GF3_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GF4 <- box_score_data_1920_condensed %>%
-      filter(GF4_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GF5 <- box_score_data_1920_condensed %>%
-      filter(GF5_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GF6 <- box_score_data_1920_condensed %>%
-      filter(GF6_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    
-    GF = GF1 + GF2 + GF3 + GF4 + GF5 + GF6
-    
-    GA1 <- box_score_data_1920_condensed %>%
-      filter(GA1_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GA2 <- box_score_data_1920_condensed %>%
-      filter(GA2_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GA3 <- box_score_data_1920_condensed %>%
-      filter(GA3_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GA4 <- box_score_data_1920_condensed %>%
-      filter(GA4_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GA5 <- box_score_data_1920_condensed %>%
-      filter(GA5_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    GA6 <- box_score_data_1920_condensed %>%
-      filter(GA6_name == 'Jesper Jensen') %>%
-      filter(game_situation == '5v5') %>%
-      nrow()
-    
-    GA = GA1 + GA2 + GA3 + GA4 + GA5 + GA6
-    
-    `GF%` <- GF / (GF + GA)
-    `GF%` <- round(`GF%` * 100, 1)
-    
-    IPP <- P / GF
-    IPP <- round(IPP * 100, 1)
-    
-    data <- tibble(player = player, situation = 'EV', manpower = '5v5', GP = GP, G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                   IPP = IPP)
-    
-  }
+  data <- merge(data, player_toi_data_1920[,c("swehockey_name", "shlse_team_name", "Pos")],
+                by.x = "player", by.y = "swehockey_name") %>% unique()
   
-  return(data)
-  
-}
-
-player_5v5_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_5v5_data(player)
-  
-  player_5v5_data <- rbind(player_5v5_data, temp)
-  
-  print(player)
-  
-}
-
-#4v4 Data
-get_4v4_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation == '4v4') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '4v4') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '4v4') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '4v4') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '4v4') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'EV', manpower = '4v4', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation == '4v4') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation == '4v4') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation == '4v4') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation == '4v4') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation == '4v4') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'EV', manpower = '4v4', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
-
-player_4v4_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_4v4_data(player)
-  
-  player_4v4_data <- rbind(player_4v4_data, temp)
-  
-  print(player)
-  
-}
-
-#3v3 Data
-get_3v3_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation == '3v3') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '3v3') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '3v3') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '3v3') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '3v3') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'EV', manpower = '3v3', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation == '3v3') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation == '3v3') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation == '3v3') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation == '3v3') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation == '3v3') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'EV', manpower = '3v3', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
-
-player_3v3_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_3v3_data(player)
-  
-  player_3v3_data <- rbind(player_3v3_data, temp)
-  
-  print(player)
-  
-}
-
-#All PP Data
-get_pp_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation_general == 'PP') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation_general == 'PP') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation_general == 'PP') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation_general == 'PP') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation_general == 'SH') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'PP', manpower = 'PP', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation_general == 'PP') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation_general == 'PP') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation_general == 'PP') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation_general == 'PP') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation_general == 'SH') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'PP', manpower = 'PP', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
+  data <- data %>%
+    rename(Team = shlse_team_name) #%>%
+    #.[,c(1,17,18,2:16)]
   
   return(data)
   
@@ -1998,312 +1616,25 @@ for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey
   
 }
 
-#5v4 Data
-get_5v4_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation == '5v4') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '5v4') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '5v4') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '5v4') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '4v5') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'PP', manpower = '5v4', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation == '5v4') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation == '5v4') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation == '5v4') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation == '5v4') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation == '4v5') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'PP', manpower = '5v4', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
-
-player_5v4_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_5v4_data(player)
-  
-  player_5v4_data <- rbind(player_5v4_data, temp)
-  
-  print(player)
-  
-}
-
-#5v3 Data
-get_5v3_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation == '5v3') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '5v3') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '5v3') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '5v3') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '3v5') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'PP', manpower = '5v3', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation == '5v3') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation == '5v3') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation == '5v3') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation == '5v3') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation == '3v5') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'PP', manpower = '5v3', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
-
-player_5v3_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_5v3_data(player)
-  
-  player_5v3_data <- rbind(player_5v3_data, temp)
-  
-  print(player)
-  
-}
-
-#4v3 Data
-get_4v3_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation == '4v3') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '4v3') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '4v3') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '4v3') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '3v4') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'PP', manpower = '4v3', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation == '4v3') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation == '4v3') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation == '4v3') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation == '4v3') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation == '3v4') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'PP', manpower = '4v3', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
-
-player_4v3_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_4v3_data(player)
-  
-  player_4v3_data <- rbind(player_4v3_data, temp)
-  
-  print(player)
-  
-}
-
-#All SH Data
+#SH Data
 get_sh_data <- function(player) {
   
+  GP <- player_toi_data_1920 %>%
+    filter(swehockey_name == player) %>%
+    nrow()
+  
   G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
+    filter(goal == player) %>%
     filter(game_situation_general == 'SH') %>%
     nrow()
   
   A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
+    filter(primary_assist == player) %>%
     filter(game_situation_general == 'SH') %>%
     nrow()
   
   A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
+    filter(secondary_assist == player) %>%
     filter(game_situation_general == 'SH') %>%
     nrow()
   
@@ -2313,63 +1644,75 @@ get_sh_data <- function(player) {
   
   P <- G + A
   
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
+  GF1 <- box_score_data_1920_condensed %>%
+    filter(GF1_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GF2 <- box_score_data_1920_condensed %>%
+    filter(GF2_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GF3 <- box_score_data_1920_condensed %>%
+    filter(GF3_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GF4 <- box_score_data_1920_condensed %>%
+    filter(GF4_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GF5 <- box_score_data_1920_condensed %>%
+    filter(GF5_name == player) %>%
+    filter(game_situation_general == 'SH') %>%
+    nrow()
+  GF6 <- box_score_data_1920_condensed %>%
+    filter(GF6_name == player) %>%
     filter(game_situation_general == 'SH') %>%
     nrow()
   
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
+  GF = GF1 + GF2 + GF3 + GF4 + GF5 + GF6
+  
+  GA1 <- box_score_data_1920_condensed %>%
+    filter(GA1_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GA2 <- box_score_data_1920_condensed %>%
+    filter(GA2_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GA3 <- box_score_data_1920_condensed %>%
+    filter(GA3_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GA4 <- box_score_data_1920_condensed %>%
+    filter(GA4_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GA5 <- box_score_data_1920_condensed %>%
+    filter(GA5_name == player) %>%
+    filter(game_situation_general == 'PP') %>%
+    nrow()
+  GA6 <- box_score_data_1920_condensed %>%
+    filter(GA6_name == player) %>%
     filter(game_situation_general == 'PP') %>%
     nrow()
   
-  `GF%` <- round(GF / (GF + GA),2)
+  GA = GA1 + GA2 + GA3 + GA4 + GA5 + GA6
   
-  IPP <- round(P/GF, 2)
+  `GF%` <- GF / (GF + GA)
+  `GF%` <- round(`GF%` * 100, 1)
   
-  data <- tibble(player = player, situation = 'SH', manpower = 'SH', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+  IPP <- P / GF
+  IPP <- round(IPP * 100, 1)
+  
+  data <- tibble(player = player, situation = 'SH', manpower = 'SH', GP = GP, G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
                  IPP = IPP)
   
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation_general == 'SH') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation_general == 'SH') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation_general == 'SH') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation_general == 'SH') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation_general == 'PP') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'SH', manpower = 'SH', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
+  data <- merge(data, player_toi_data_1920[,c("swehockey_name", "shlse_team_name", "Pos")],
+                by.x = "player", by.y = "swehockey_name") %>% unique()
+  
+  data <- data %>%
+    rename(Team = shlse_team_name) #%>%
+  #.[,c(1,17,18,2:16)]
   
   return(data)
   
@@ -2386,281 +1729,101 @@ for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey
   
 }
 
-#4v5 Data
-get_4v5_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation == '4v5') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '4v5') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '4v5') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '4v5') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '5v4') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'SH', manpower = '4v5', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation == '4v5') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation == '4v5') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation == '4v5') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation == '4v5') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation == '5v4') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'SH', manpower = '4v5', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
-
-player_4v5_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_4v5_data(player)
-  
-  player_4v5_data <- rbind(player_4v5_data, temp)
-  
-  print(player)
-  
-}
-
-#3v5 Data
-get_3v5_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation == '3v5') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '3v5') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '3v5') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '3v5') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '5v3') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'SH', manpower = '3v5', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation == '3v5') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation == '3v5') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation == '3v5') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation == '3v5') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation == '5v3') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'SH', manpower = '3v5', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
-
-player_3v5_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_3v5_data(player)
-  
-  player_3v5_data <- rbind(player_3v5_data, temp)
-  
-  print(player)
-  
-}
-
-#1v0 Data
 get_1v0_data <- function(player) {
   
+  #GP <- player_toi_data_1920 %>%
+    #filter(swehockey_name == player) %>%
+    #nrow()
+  
   G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
+    filter(goal == player) %>%
     filter(game_situation == '1v0') %>%
     nrow()
   
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation == '1v0') %>%
-    nrow()
+  #A1 <- box_score_data_1920_condensed %>%
+    #filter(primary_assist == player) %>%
+    #filter(game_situation_general == 'SH') %>%
+    #nrow()
   
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation == '1v0') %>%
-    nrow()
+  #A2 <- box_score_data_1920_condensed %>%
+    #filter(secondary_assist == player) %>%
+    #filter(game_situation_general == 'SH') %>%
+    #nrow()
   
-  A <- A1 + A2
+  #A <- A1 + A2
   
-  P1 <- G + A1
+  #P1 <- G + A1
   
-  P <- G + A
+  #P <- G + A
   
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation == '1v0') %>%
-    nrow()
+  #GF1 <- box_score_data_1920_condensed %>%
+    #filter(GF1_name == player) %>%
+    #filter(game_situation_general == 'SH') %>%
+    #nrow()
+  # GF2 <- box_score_data_1920_condensed %>%
+  #   filter(GF2_name == player) %>%
+  #   filter(game_situation_general == 'SH') %>%
+  #   nrow()
+  # GF3 <- box_score_data_1920_condensed %>%
+  #   filter(GF3_name == player) %>%
+  #   filter(game_situation_general == 'SH') %>%
+  #   nrow()
+  # GF4 <- box_score_data_1920_condensed %>%
+  #   filter(GF4_name == player) %>%
+  #   filter(game_situation_general == 'SH') %>%
+  #   nrow()
+  # GF5 <- box_score_data_1920_condensed %>%
+  #   filter(GF5_name == player) %>%
+  #   filter(game_situation_general == 'SH') %>%
+  #   nrow()
+  # GF6 <- box_score_data_1920_condensed %>%
+  #   filter(GF6_name == player) %>%
+  #   filter(game_situation_general == 'SH') %>%
+  #   nrow()
+  # 
+  # GF = GF1 + GF2 + GF3 + GF4 + GF5 + GF6
+  # 
+  # GA1 <- box_score_data_1920_condensed %>%
+  #   filter(GA1_name == player) %>%
+  #   filter(game_situation_general == 'PP') %>%
+  #   nrow()
+  # GA2 <- box_score_data_1920_condensed %>%
+  #   filter(GA2_name == player) %>%
+  #   filter(game_situation_general == 'PP') %>%
+  #   nrow()
+  # GA3 <- box_score_data_1920_condensed %>%
+  #   filter(GA3_name == player) %>%
+  #   filter(game_situation_general == 'PP') %>%
+  #   nrow()
+  # GA4 <- box_score_data_1920_condensed %>%
+  #   filter(GA4_name == player) %>%
+  #   filter(game_situation_general == 'PP') %>%
+  #   nrow()
+  # GA5 <- box_score_data_1920_condensed %>%
+  #   filter(GA5_name == player) %>%
+  #   filter(game_situation_general == 'PP') %>%
+  #   nrow()
+  # GA6 <- box_score_data_1920_condensed %>%
+  #   filter(GA6_name == player) %>%
+  #   filter(game_situation_general == 'PP') %>%
+  #   nrow()
+  # 
+  # GA = GA1 + GA2 + GA3 + GA4 + GA5 + GA6
+  # 
+  # `GF%` <- GF / (GF + GA)
+  # `GF%` <- round(`GF%` * 100, 1)
+  # 
+  # IPP <- P / GF
+  # IPP <- round(IPP * 100, 1)
   
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation == '1v0') %>%
-    nrow()
+  data <- tibble(player = player, situation = '1v0', manpower = '1v0', G = G)
   
-  `GF%` <- round(GF / (GF + GA),2)
+  data <- merge(data, player_toi_data_1920[,c("swehockey_name", "shlse_team_name", "Pos")],
+                by.x = "player", by.y = "swehockey_name") %>% unique()
   
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = '1v0', manpower = '1v0', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation == '1v0') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation == '1v0') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation == '1v0') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation == '1v0') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation == '1v0') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = '1v0', manpower = '1v0', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
+  data <- data %>%
+    rename(Team = shlse_team_name) #%>%
+  #.[,c(1,17,18,2:16)]
   
   return(data)
   
@@ -2677,130 +1840,17 @@ for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey
   
 }
 
-#1v0 Data
-get_eng_data <- function(player) {
-  
-  G <- box_score_data_1920_condensed %>%
-    subset(grepl(player, goal)) %>%
-    filter(game_situation_general == 'ENG') %>%
-    nrow()
-  
-  A1 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, primary_assist)) %>%
-    filter(game_situation_general == 'ENG') %>%
-    nrow()
-  
-  A2 <- box_score_data_1920_condensed %>%
-    subset(grepl(player, secondary_assist)) %>%
-    filter(game_situation_general == 'ENG') %>%
-    nrow()
-  
-  A <- A1 + A2
-  
-  P1 <- G + A1
-  
-  P <- G + A
-  
-  GF <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GF_names)) %>%
-    filter(game_situation_general == 'ENG') %>%
-    nrow()
-  
-  GA <- box_score_data_1920_condensed %>%
-    subset(grepl(player, GA_names)) %>%
-    filter(game_situation_general == 'ENG') %>%
-    nrow()
-  
-  `GF%` <- round(GF / (GF + GA),2)
-  
-  IPP <- round(P/GF, 2)
-  
-  data <- tibble(player = player, situation = 'ENG', manpower = 'ENG', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
-                 IPP = IPP)
-  
-  if(player == 'Jesper Jensen') {
-    
-    G.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', goal)) %>%
-      filter(game_situation_general == 'ENG') %>%
-      nrow()
-    
-    A1.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
-      filter(game_situation_general == 'ENG') %>%
-      nrow()
-    
-    A2.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
-      filter(game_situation_general == 'ENG') %>%
-      nrow()
-    
-    A.2 <- A1.2 + A2.2
-    
-    P1.2 <- G.2 + A1.2
-    
-    P.2 <- G.2 + A.2
-    
-    GF.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
-      filter(game_situation_general == 'ENG') %>%
-      nrow()
-    
-    GA.2 <- box_score_data_1920_condensed %>%
-      subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
-      filter(game_situation_general == 'ENG') %>%
-      nrow()
-    
-    data <- tibble(player = player, situation = 'ENG', manpower = 'ENG', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
-                   GF = GF - GF.2, GA = GA - GA.2)
-    
-    data <- data %>%
-      mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
-    
-  }
-  
-  return(data)
-  
-}
 
-player_eng_data <- c()
-for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
-  
-  temp <- get_eng_data(player)
-  
-  player_eng_data <- rbind(player_eng_data, temp)
-  
-  print(player)
-  
-}
 
-#Master Table
-master_swehockey_data <- rbind(player_all_sits_data, player_ev_data, player_5v5_data, player_3v3_data,
-                               player_pp_data, player_5v4_data, player_sh_data,
-                               player_4v5_data, player_1v0_data, player_eng_data)
 
 # Scratch Work ------------------------------------------------------------
-
-
-player_toi_data_1920 <- read.csv("player_toi_data_1920.csv", header = TRUE)
-player_corsi_data_1920 <- read.csv("player_corsi_data_1920.csv", header = TRUE)
-
-
-merge(player_5v5_data, player_toi_data_1920[,c("swehockey_name", "shlse_team_name", "Pos")],
-      by.x = "player", by.y = "swehockey_name") %>% unique() -> master_5v5_data
-
-master_5v5_data <- master_5v5_data %>%
-  rename(Team = shlse_team_name) %>%
-  .[,c(1,15,16,2:14)]
-
-write_excel_csv(master_5v5_data, "master_5v5_data.csv")
-
 
 fenwick_data <- player_corsi_data_1920 %>%
     group_by(swehockey_name) %>%
     summarise(FF = sum(FF), FA = sum(FA))
 
 test <- merge(master_5v5_data, fenwick_data, by.x = 'player', by.y = 'swehockey_name')
+
 
 test <- test %>%
   mutate(FenSh = round(GF/FF,3)) %>%
@@ -2810,15 +1860,1454 @@ test <- test %>%
 
 write_excel_csv(box_score_data_1920_condensed, "box_score_data_1920_condensed.csv")
 
+write_excel_csv(lineup_data_1920, "lineup_data_1920.csv")
+
+
+team_5v5_goals <- box_score_data_1920_condensed %>%
+  filter(game_situation == '5v5') %>%
+  group_by(gf_team) %>%
+  summarise(goal = count(goal))
+
+team_5v5_goals <- merge(team_5v5_goals, shl_team_dictionary, by.x = "gf_team", by.y = "swehockey_team_name")
 
 
 
+team_5v5_goals <- left_join(player_5v5_data, team_5v5_goals, by = c("Team" = "shlse_team_name"))
 
 
+team_5v5_goals <- team_5v5_goals %>%
+  select(player, manpower, Team, Pos, GP, P, GF, goal) %>%
+  rename(team_goals = goal) %>%
+
+player_5v5_contribution <- team_5v5_goals %>%
+  mutate(GF_perc_on = round(GF / team_goals,2)) %>%
+  mutate(GF_point_on = round(P / team_goals,2))
 
 
+FenFor <- player_corsi_data_1920 %>%
+  filter(swehockey_name == 'Kodie Curran') %>%
+  sum(player_corsi_data_1920$FF)
+
+scatterplot_data <- player_5v5_data %>%
+  filter(GP > 9) %>%
+  select(player, FenSh, FenSv)
+
+scatterplot_data[is.na(scatterplot_data)] <- 0
+
+ggplot(scatterplot_data, aes(x = FenSh, y = FenSv)) +
+  geom_point() 
+
+mean(scatterplot_data$FenSh)
+
+# Old Functions -----------------------------------------------------------
 
 
-
-
-
+# #All Situations Data
+# get_all_sits_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'All Sits.', manpower = 'All Sits.', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'All Sits.', manpower = 'All Sits.', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_all_sits_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_all_sits_data(player)
+#   
+#   player_all_sits_data <- rbind(player_all_sits_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #All EV Data
+# get_ev_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation_general == 'EV') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation_general == 'EV') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation_general == 'EV') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation_general == 'EV') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation_general == 'EV') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'EV', manpower = 'EV', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation_general == 'EV') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation_general == 'EV') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation_general == 'EV') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation_general == 'EV') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation_general == 'EV') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'EV', manpower = 'EV', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_ev_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_ev_data(player)
+#   
+#   player_ev_data <- rbind(player_ev_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #5v5 Data
+# get_5v5_data <- function(player) {
+#   
+#   GP <- player_toi_data_1920 %>%
+#     filter(swehockey_name == player) %>%
+#     nrow()
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '5v5') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '5v5') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '5v5') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '5v5') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '5v5') %>%
+#     nrow()
+#   
+#   `GF%` <- GF / (GF + GA)
+#   `GF%` <- round(`GF%` * 100, 1)
+#   
+#   IPP <- P / GF
+#   IPP <- round(IPP * 100, 1)
+#   
+#   data <- tibble(player = player, situation = 'EV', manpower = '5v5', GP = GP, G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     GP <- player_toi_data_1920 %>%
+#       filter(swehockey_name == 'Jesper Jensen') %>%
+#       nrow()
+#     
+#     G <- box_score_data_1920_condensed %>%
+#       filter(goal == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     
+#     A1 <- box_score_data_1920_condensed %>%
+#       filter(primary_assist == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     
+#     A2 <- box_score_data_1920_condensed %>%
+#       filter(secondary_assist == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     
+#     A <- A1 + A2
+#     
+#     P1 <- G + A1
+#     
+#     P <- G + A
+#     
+#     GF1 <- box_score_data_1920_condensed %>%
+#       filter(GF1_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GF2 <- box_score_data_1920_condensed %>%
+#       filter(GF2_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GF3 <- box_score_data_1920_condensed %>%
+#       filter(GF3_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GF4 <- box_score_data_1920_condensed %>%
+#       filter(GF4_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GF5 <- box_score_data_1920_condensed %>%
+#       filter(GF5_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GF6 <- box_score_data_1920_condensed %>%
+#       filter(GF6_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     
+#     GF = GF1 + GF2 + GF3 + GF4 + GF5 + GF6
+#     
+#     GA1 <- box_score_data_1920_condensed %>%
+#       filter(GA1_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GA2 <- box_score_data_1920_condensed %>%
+#       filter(GA2_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GA3 <- box_score_data_1920_condensed %>%
+#       filter(GA3_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GA4 <- box_score_data_1920_condensed %>%
+#       filter(GA4_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GA5 <- box_score_data_1920_condensed %>%
+#       filter(GA5_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     GA6 <- box_score_data_1920_condensed %>%
+#       filter(GA6_name == 'Jesper Jensen') %>%
+#       filter(game_situation == '5v5') %>%
+#       nrow()
+#     
+#     GA = GA1 + GA2 + GA3 + GA4 + GA5 + GA6
+#     
+#     `GF%` <- GF / (GF + GA)
+#     `GF%` <- round(`GF%` * 100, 1)
+#     
+#     IPP <- P / GF
+#     IPP <- round(IPP * 100, 1)
+#     
+#     data <- tibble(player = player, situation = 'EV', manpower = '5v5', GP = GP, G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                    IPP = IPP)
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_5v5_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_5v5_data(player)
+#   
+#   player_5v5_data <- rbind(player_5v5_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #4v4 Data
+# get_4v4_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '4v4') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '4v4') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '4v4') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '4v4') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '4v4') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'EV', manpower = '4v4', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation == '4v4') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation == '4v4') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation == '4v4') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation == '4v4') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation == '4v4') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'EV', manpower = '4v4', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_4v4_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_4v4_data(player)
+#   
+#   player_4v4_data <- rbind(player_4v4_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #3v3 Data
+# get_3v3_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '3v3') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '3v3') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '3v3') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '3v3') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '3v3') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'EV', manpower = '3v3', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation == '3v3') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation == '3v3') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation == '3v3') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation == '3v3') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation == '3v3') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'EV', manpower = '3v3', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_3v3_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_3v3_data(player)
+#   
+#   player_3v3_data <- rbind(player_3v3_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #All PP Data
+# get_pp_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation_general == 'PP') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation_general == 'PP') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation_general == 'PP') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation_general == 'PP') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation_general == 'SH') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'PP', manpower = 'PP', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation_general == 'PP') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation_general == 'PP') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation_general == 'PP') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation_general == 'PP') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation_general == 'SH') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'PP', manpower = 'PP', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_pp_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_pp_data(player)
+#   
+#   player_pp_data <- rbind(player_pp_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #5v4 Data
+# get_5v4_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '5v4') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '5v4') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '5v4') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '5v4') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '4v5') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'PP', manpower = '5v4', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation == '5v4') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation == '5v4') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation == '5v4') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation == '5v4') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation == '4v5') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'PP', manpower = '5v4', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_5v4_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_5v4_data(player)
+#   
+#   player_5v4_data <- rbind(player_5v4_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #5v3 Data
+# get_5v3_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '5v3') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '5v3') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '5v3') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '5v3') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '3v5') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'PP', manpower = '5v3', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation == '5v3') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation == '5v3') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation == '5v3') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation == '5v3') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation == '3v5') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'PP', manpower = '5v3', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_5v3_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_5v3_data(player)
+#   
+#   player_5v3_data <- rbind(player_5v3_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #4v3 Data
+# get_4v3_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '4v3') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '4v3') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '4v3') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '4v3') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '3v4') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'PP', manpower = '4v3', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation == '4v3') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation == '4v3') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation == '4v3') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation == '4v3') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation == '3v4') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'PP', manpower = '4v3', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_4v3_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_4v3_data(player)
+#   
+#   player_4v3_data <- rbind(player_4v3_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #All SH Data
+# get_sh_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation_general == 'SH') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation_general == 'SH') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation_general == 'SH') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation_general == 'SH') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation_general == 'PP') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'SH', manpower = 'SH', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation_general == 'SH') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation_general == 'SH') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation_general == 'SH') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation_general == 'SH') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation_general == 'PP') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'SH', manpower = 'SH', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_sh_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_sh_data(player)
+#   
+#   player_sh_data <- rbind(player_sh_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #4v5 Data
+# get_4v5_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '4v5') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '4v5') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '4v5') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '4v5') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '5v4') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'SH', manpower = '4v5', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation == '4v5') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation == '4v5') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation == '4v5') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation == '4v5') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation == '5v4') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'SH', manpower = '4v5', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_4v5_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_4v5_data(player)
+#   
+#   player_4v5_data <- rbind(player_4v5_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #3v5 Data
+# get_3v5_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '3v5') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '3v5') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '3v5') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '3v5') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '5v3') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'SH', manpower = '3v5', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation == '3v5') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation == '3v5') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation == '3v5') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation == '3v5') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation == '5v3') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'SH', manpower = '3v5', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_3v5_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_3v5_data(player)
+#   
+#   player_3v5_data <- rbind(player_3v5_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #1v0 Data
+# get_1v0_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation == '1v0') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation == '1v0') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation == '1v0') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation == '1v0') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation == '1v0') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = '1v0', manpower = '1v0', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation == '1v0') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation == '1v0') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation == '1v0') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation == '1v0') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation == '1v0') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = '1v0', manpower = '1v0', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_1v0_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_1v0_data(player)
+#   
+#   player_1v0_data <- rbind(player_1v0_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #1v0 Data
+# get_eng_data <- function(player) {
+#   
+#   G <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, goal)) %>%
+#     filter(game_situation_general == 'ENG') %>%
+#     nrow()
+#   
+#   A1 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, primary_assist)) %>%
+#     filter(game_situation_general == 'ENG') %>%
+#     nrow()
+#   
+#   A2 <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, secondary_assist)) %>%
+#     filter(game_situation_general == 'ENG') %>%
+#     nrow()
+#   
+#   A <- A1 + A2
+#   
+#   P1 <- G + A1
+#   
+#   P <- G + A
+#   
+#   GF <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GF_names)) %>%
+#     filter(game_situation_general == 'ENG') %>%
+#     nrow()
+#   
+#   GA <- box_score_data_1920_condensed %>%
+#     subset(grepl(player, GA_names)) %>%
+#     filter(game_situation_general == 'ENG') %>%
+#     nrow()
+#   
+#   `GF%` <- round(GF / (GF + GA),2)
+#   
+#   IPP <- round(P/GF, 2)
+#   
+#   data <- tibble(player = player, situation = 'ENG', manpower = 'ENG', G = G, A = A, A1 = A1, A2 = A2, P = P, P1 = P1, GF = GF, GA = GA, `GF%` = `GF%`,
+#                  IPP = IPP)
+#   
+#   if(player == 'Jesper Jensen') {
+#     
+#     G.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', goal)) %>%
+#       filter(game_situation_general == 'ENG') %>%
+#       nrow()
+#     
+#     A1.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', primary_assist)) %>%
+#       filter(game_situation_general == 'ENG') %>%
+#       nrow()
+#     
+#     A2.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', secondary_assist)) %>%
+#       filter(game_situation_general == 'ENG') %>%
+#       nrow()
+#     
+#     A.2 <- A1.2 + A2.2
+#     
+#     P1.2 <- G.2 + A1.2
+#     
+#     P.2 <- G.2 + A.2
+#     
+#     GF.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GF_names)) %>%
+#       filter(game_situation_general == 'ENG') %>%
+#       nrow()
+#     
+#     GA.2 <- box_score_data_1920_condensed %>%
+#       subset(grepl('Jesper Jensen Aabo', GA_names)) %>%
+#       filter(game_situation_general == 'ENG') %>%
+#       nrow()
+#     
+#     data <- tibble(player = player, situation = 'ENG', manpower = 'ENG', G = G - G.2, A = A - A.2,  A1 = A1 - A1.2, A2 = A2 - A2.2,  P = P - P.2, P1 = P1 - P1.2, 
+#                    GF = GF - GF.2, GA = GA - GA.2)
+#     
+#     data <- data %>%
+#       mutate(`GF%` = round(GF / (GF + GA),2), IPP = IPP <- round(P/GF, 2))
+#     
+#   }
+#   
+#   return(data)
+#   
+# }
+# 
+# player_eng_data <- c()
+# for(player in player_lookup_1920$swehockey[1:length(player_lookup_1920$swehockey)]) {
+#   
+#   temp <- get_eng_data(player)
+#   
+#   player_eng_data <- rbind(player_eng_data, temp)
+#   
+#   print(player)
+#   
+# }
+# 
+# #Master Table
+# master_swehockey_data <- rbind(player_all_sits_data, player_ev_data, player_5v5_data, player_3v3_data,
+#                                player_pp_data, player_5v4_data, player_sh_data,
+#                                player_4v5_data, player_1v0_data, player_eng_data)

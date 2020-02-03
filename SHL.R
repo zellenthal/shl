@@ -83,12 +83,8 @@ master_team_schedule <- rbind(master_team_schedule_1415, master_team_schedule_15
 #player lookup with swehocky names
 player_lookup_1920 <- read.csv("player_lookup_1920.csv", stringsAsFactors = FALSE)
 
-player_lookup_1920_update <- tibble(swehockey = c("Casper Siösteen", "William Eklund", "Gabriel Säll",
-                                                  "Ludwig Persson", "Karl Henriksson", "Radek Muzik",
-                                                  "Yohann Auvitu"),
-                                    shlse = c("Casper Siösteen", "William Eklund", "Gabriel Säll",
-                                              "Ludwig Persson", "Karl Henriksson", "Radek Muzik",
-                                              "Yohann Auvitu"))
+player_lookup_1920_update <- tibble(swehockey = c("Isak Renemark", "Anton Holm", "Lias Andersson"),
+                                    shlse = c("Isak Renemark", "Anton Holm", "Lias Andersson"))
 
 player_lookup_1920 <- rbind(player_lookup_1920, player_lookup_1920_update) 
 
@@ -343,7 +339,7 @@ player_points <- function(teamID) {
 player_points_data_1920 <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
     
-    for (date1 in as.list(shl_dates_1920[1:42])) {
+    for (date1 in as.list(shl_dates_1920[1:44])) {
     
     temp <- player_points(teamID)
     
@@ -355,6 +351,60 @@ for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   }
   }
 
+player_points_oo <- function(url) {
+    
+    # url <- read_html(paste('https://www.shl.se/statistik/spelare/point?season=from', date1,
+    #                        'to', date1 + 1, '&gameType=regular&position=All&status=All&team=', teamID, '&vsTeam=All&outcome=all&location=all',
+    #                        sep=''))
+    
+    table <- url %>%
+      html_nodes("table") %>%
+      .[1] %>%
+      html_table(fill = TRUE, header = TRUE) %>%
+      as.data.frame(fill = TRUE)
+    
+    #make first row the column headers
+    colnames(table) <- as.character(unlist(table[1,])) %>% 
+      #make the headers unique
+      make.unique()
+    table <- table[-1, ] %>%
+      
+      #add game date
+      mutate(date1) %>%
+      
+      #rename column headers
+      rename(G_PP = G.1, A_PP = A.1, TP_PP = TP.1,
+             G_EV = G.2, A_EV = A.2, TP_EV = TP.2,
+             G_SH = G.3, A_SH = A.3, TP_SH = TP.3) %>%
+      
+      #make columns numeric
+      mutate_at(c('Nr', 'GP', 'G', 'A', 'A1', 'A2', 'TP',
+                  'G_EV', 'A_EV', 'TP_EV',
+                  'G_PP', 'A_PP', 'TP_PP',
+                  'G_SH', 'A_SH', 'TP_SH'), as.numeric) %>%
+      
+      #remove the last word from the Spelare string
+      mutate(placeholder_name = gsub("\\s+\\S+$", "", Spelare)) %>%
+      
+      #remove the last letter from the placeholder_name string
+      mutate(name = gsub('.{1}$', '', placeholder_name)) %>%
+      
+      #concatenate name and date for unique identifier
+      mutate(name_date = paste(name, date1, sep = "")) %>%
+      
+      #concatenate team and date
+      mutate(team_date = paste(Lag, date1, sep = "")) %>%
+      
+      #join in to get game number for the team/of the season
+      left_join(master_team_schedule_1920, by = "team_date") %>%
+      
+      #remove unneeded columns by schedule data
+      select(-c(date2, home_team, away_team, combined_teams, home_team_id, away_team_id, combined_ids,
+                home_team_name_double, away_team_name_double, combined_team_names_double, date, team))
+    
+    return(table)
+    
+  }
 
 #player toi scrape
 player_toi <- function(teamID) {
@@ -867,7 +917,7 @@ rm(player_points_data_1920_update,
 player_points_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[42])) {
+  for (date1 in as.list(shl_dates_1920[47])) {
     
     temp <- player_points(teamID)
     
@@ -888,7 +938,7 @@ player_points_data_1920 <- rbind(player_points_data_1920, player_points_data_192
 team_corsi_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[42])) {
+  for (date1 in as.list(shl_dates_1920[47])) {
     
     temp <- team_corsi(teamID)
     
@@ -911,7 +961,7 @@ team_corsi_data_1920 <- rbind(team_corsi_data_1920, team_corsi_data_1920_update)
 player_corsi_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[42])) {
+  for (date1 in as.list(shl_dates_1920[47])) {
     
     temp <- player_corsi(teamID)
     
@@ -934,7 +984,7 @@ player_corsi_data_1920 <- rbind(player_corsi_data_1920, player_corsi_data_1920_u
 player_ev_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[42])) {
+  for (date1 in as.list(shl_dates_1920[47])) {
     
     temp <- player_ev(teamID)
     
@@ -954,7 +1004,7 @@ player_ev_data_1920 <- rbind(player_ev_data_1920, player_ev_data_1920_update)
 player_toi_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[42])) {
+  for (date1 in as.list(shl_dates_1920[47])) {
     
     temp <- player_toi(teamID)
     
@@ -1040,6 +1090,14 @@ write.csv(unique(player_corsi_data_1920$swehockey_name), file = "player_names_19
 
 
 
+
+
+
+
+
+
+
+box_score_data 
 
 
 
