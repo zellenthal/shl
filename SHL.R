@@ -37,6 +37,10 @@ swehockey_team_names <- c("AIK", "Brynäs IF", "Djurgårdens IF", "Frölunda HC"
                           "Örebro HK", "Rögle BK", "Skellefteå AIK", "Södertälje SK", "Timrå IK", 
                           "Växjö Lakers HC")
 
+ha_swehockey_team_names <- c('IF Björklöven', 'Timrå IK', 'Västerås IK', 'MODO Hockey', 'BIK Karlskoga',
+                             'HC Vita Hästen', 'Södertälje SK', 'Tingsryds AIF', 'Västerviks IK', 'Mora IK',
+                             'Karlskrona HK', 'Kristianstads IK', 'Almtuna IS', 'AIK')
+
 #vector for team abbreviations, created by me
 shl_team_abbreviations <- c("aik", "bif", "dif", "fhc", "fbk", "hv", "khk", "lif", 
                             "lhc", "lhf", "mif", "modo", "mik","iko", "ohk", "rbk", 
@@ -83,8 +87,8 @@ master_team_schedule <- rbind(master_team_schedule_1415, master_team_schedule_15
 #player lookup with swehocky names
 player_lookup_1920 <- read.csv("player_lookup_1920.csv", stringsAsFactors = FALSE)
 
-player_lookup_1920_update <- tibble(swehockey = c("Isak Renemark", "Anton Holm", "Lias Andersson"),
-                                    shlse = c("Isak Renemark", "Anton Holm", "Lias Andersson"))
+player_lookup_1920_update <- tibble(swehockey = c("Karl Påhlsson", "Leo Lööf", "Adam Arvedson"),
+                                    shlse = c("Karl Påhlsson", "Leo Lööf", "Adam Arvedson"))
 
 player_lookup_1920 <- rbind(player_lookup_1920, player_lookup_1920_update) 
 
@@ -339,7 +343,7 @@ player_points <- function(teamID) {
 player_points_data_1920 <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
     
-    for (date1 in as.list(shl_dates_1920[1:44])) {
+    for (date1 in as.list(shl_dates_1920[1:48])) {
     
     temp <- player_points(teamID)
     
@@ -465,7 +469,7 @@ player_toi <- function(teamID) {
 player_toi_data_1920 <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[1:42])) {
+  for (date1 in as.list(shl_dates_1920[1:48])) {
     
     temp <- player_toi(teamID)
     
@@ -522,7 +526,7 @@ team_corsi <- function(teamID) {
 team_corsi_data_1920 <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[1:42])) {
+  for (date1 in as.list(shl_dates_1920[1:48])) {
     
     temp <- team_corsi(teamID)
     
@@ -612,7 +616,7 @@ player_corsi <- function(teamID) {
 player_corsi_data_1920 <- c() 
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[1:42])) {
+  for (date1 in as.list(shl_dates_1920[1:48])) {
     
     temp <- player_corsi(teamID)
     
@@ -673,7 +677,7 @@ player_ev <- function(teamID) {
 player_ev_data_1920 <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[1:42])) {
+  for (date1 in as.list(shl_dates_1920[1:48])) {
     
     temp <- player_ev(teamID)
     
@@ -907,17 +911,16 @@ player_card <- function(player_name) {
 
 # Updates -----------------------------------------------------------------
 
-rm(player_points_data_1920_update,
-   player_ev_data_1920_update,
-   player_toi_data_1920_update,
-   player_corsi_data_1920_update,
-   team_corsi_data_1920_update)
+player_toi_data_1920 <- player_toi_data_1920[,c(1:30)]
+player_points_data_1920 <- player_points_data_1920[,c(1:31)]
+player_corsi_data_1920 <- player_corsi_data_1920[,c(1:32)]
+player_ev_data_1920 <- player_ev_data_1920[,c(1:26)]
 
 #points
 player_points_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[47])) {
+  for (date1 in as.list(shl_dates_1920[1:62])) {
     
     temp <- player_points(teamID)
     
@@ -938,7 +941,7 @@ player_points_data_1920 <- rbind(player_points_data_1920, player_points_data_192
 team_corsi_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[47])) {
+  for (date1 in as.list(shl_dates_1920[1:62])) {
     
     temp <- team_corsi(teamID)
     
@@ -961,7 +964,7 @@ team_corsi_data_1920 <- rbind(team_corsi_data_1920, team_corsi_data_1920_update)
 player_corsi_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[47])) {
+  for (date1 in as.list(shl_dates_1920[1:62])) {
     
     temp <- player_corsi(teamID)
     
@@ -984,7 +987,7 @@ player_corsi_data_1920 <- rbind(player_corsi_data_1920, player_corsi_data_1920_u
 player_ev_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[47])) {
+  for (date1 in as.list(shl_dates_1920[1:62])) {
     
     temp <- player_ev(teamID)
     
@@ -1004,7 +1007,7 @@ player_ev_data_1920 <- rbind(player_ev_data_1920, player_ev_data_1920_update)
 player_toi_data_1920_update <- c()
 for (teamID in shl_team_dictionary_1920$shlse_team_id[1:14]) {
   
-  for (date1 in as.list(shl_dates_1920[47])) {
+  for (date1 in as.list(shl_dates_1920[1:62])) {
     
     temp <- player_toi(teamID)
     
@@ -1036,11 +1039,6 @@ player_corsi_data_1920 %>%
 player_ev_data_1920 %>%
   left_join(player_lookup_1920, by = c("name" = "shlse")) %>% 
   rename(swehockey_name = swehockey) -> player_ev_data_1920
-
-player_toi_data_1920 <- player_toi_data_1920[,c(1:30)]
-player_points_data_1920 <- player_points_data_1920[,c(1:31)]
-player_corsi_data_1920 <- player_corsi_data_1920[,c(1:32)]
-player_ev_data_1920 <- player_ev_data_1920[,c(1:26)]
 
 
 #join in friendlier team names
@@ -1100,6 +1098,152 @@ write.csv(unique(player_corsi_data_1920$swehockey_name), file = "player_names_19
 box_score_data 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+# 19/20 HA Team Schedules ------------------------------------------------------
+
+ha_schedule_1920 <- read_csv("ha_swehockey_schedule_1920.csv")
+
+#add a row number
+ha_schedule_1920 %>%
+  mutate(game_number = row_number()) -> ha_schedule_1920
+
+
+ha_schedule_1920 <- ha_schedule_1920[c(5,1:4)]
+
+#order by the date
+ha_schedule_1920 <- ha_schedule_1920[order(ha_schedule_1920$game_number),]
+
+#create each team's schedule for the 19/20 schedule
+
+#IF Bjorkloven
+ifb_schedule_1920 <- subset(ha_schedule_1920, grepl("IF Björklöven", ha_schedule_1920$combined_teams))
+
+ifb_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "IF Björklöven") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> ifb_schedule_1920
+
+#Timrå IK
+tik_schedule_1920 <- subset(ha_schedule_1920, grepl("Timrå IK", ha_schedule_1920$combined_teams))
+
+tik_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Timrå IK") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> tik_schedule_1920
+
+#Västerås IK
+vik_schedule_1920 <- subset(ha_schedule_1920, grepl("Västerås IK", ha_schedule_1920$combined_teams))
+
+vik_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Västerås IK") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> vik_schedule_1920
+
+#MODO Hockey
+modo_schedule_1920 <- subset(ha_schedule_1920, grepl("MODO Hockey", ha_schedule_1920$combined_teams))
+
+modo_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "MODO Hockey") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> modo_schedule_1920
+
+#BIK Karlskoga
+bik_schedule_1920 <- subset(ha_schedule_1920, grepl("BIK Karlskoga", ha_schedule_1920$combined_teams))
+
+bik_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "BIK Karlskoga") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> bik_schedule_1920
+
+#HC Vita Hästen
+vit_schedule_1920 <- subset(ha_schedule_1920, grepl("HC Vita Hästen", ha_schedule_1920$combined_teams))
+
+vit_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "HC Vita Hästen") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> vit_schedule_1920
+
+#Södertälje SK
+ssk_schedule_1920 <- subset(ha_schedule_1920, grepl("Södertälje SK", ha_schedule_1920$combined_teams))
+
+ssk_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Södertälje SK") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> ssk_schedule_1920
+
+#Tingsryds AIF
+taif_schedule_1920 <- subset(ha_schedule_1920, grepl("Tingsryds AIF", ha_schedule_1920$combined_teams))
+
+taif_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Tingsryds AIF") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> taif_schedule_1920
+
+#Västerviks IK
+vaik_schedule_1920 <- subset(ha_schedule_1920, grepl("Västerviks IK", ha_schedule_1920$combined_teams))
+
+vaik_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Västerviks IK") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> vaik_schedule_1920
+
+#Mora IK
+mik_schedule_1920 <- subset(ha_schedule_1920, grepl("Mora IK", ha_schedule_1920$combined_teams))
+
+mik_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Mora IK") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> mik_schedule_1920
+
+#Karlskrona HK
+khk_schedule_1920 <- subset(ha_schedule_1920, grepl("Karlskrona HK", ha_schedule_1920$combined_teams))
+
+khk_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Karlskrona HK") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> khk_schedule_1920
+
+#Kristianstads IK
+kik_schedule_1920 <- subset(ha_schedule_1920, grepl("Kristianstads IK", ha_schedule_1920$combined_teams))
+
+kik_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Kristianstads IK") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> kik_schedule_1920
+
+#Almtuna IS
+ais_schedule_1920 <- subset(ha_schedule_1920, grepl("Almtuna IS", ha_schedule_1920$combined_teams))
+
+ais_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "Almtuna IS") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> ais_schedule_1920
+
+#AIK
+aik_schedule_1920 <- subset(ha_schedule_1920, grepl("AIK", ha_schedule_1920$combined_teams))
+
+aik_schedule_1920 %>%
+  mutate(game_number = row_number()) %>%
+  mutate(team = "AIK") %>%
+  mutate(team_date = paste(team, date, sep = '')) -> aik_schedule_1920
+
+
+ha_master_team_schedule_1920 <- rbind(ifb_schedule_1920, tik_schedule_1920, vik_schedule_1920,
+                                   modo_schedule_1920, bik_schedule_1920, vit_schedule_1920,
+                                   ssk_schedule_1920, taif_schedule_1920, vaik_schedule_1920,
+                                   mik_schedule_1920, khk_schedule_1920, kik_schedule_1920,
+                                   ais_schedule_1920, aik_schedule_1920)
 
 
 
@@ -1894,6 +2038,7 @@ write.csv(unique(player_toi_data_1819$name), file = "player_names_1819.csv")
 
 
 
+
 # 14/15 Schedules ---------------------------------------------------------------
 
 #read in the 19/20 schedule, from stats.swehockey.se
@@ -2447,6 +2592,7 @@ player_card_1415 <- function(player_name) {
   return(g)
   
 }
+
 
 
 
@@ -3235,6 +3381,7 @@ write.csv(unique(player_toi_data_1516$name), file = "player_names_1516.csv")
 
 
 
+
 # 16/17 Schedules ---------------------------------------------------------------
 
 #read in the 19/20 schedule, from stats.swehockey.se
@@ -4008,6 +4155,7 @@ write.csv(player_toi_data_1617, file = "player_toi_data_1617.csv")
 
 #Unique Names
 write.csv(unique(player_toi_data_1617$name), file = "player_names_1617.csv")
+
 
 
 
@@ -4803,57 +4951,93 @@ write.csv(unique(player_toi_data_1718$name), file = "player_names_1718.csv")
 
 
 
+
+
 # Master Database ---------------------------------------------------------
 
-#combine points tables
-rbind(player_points_data_1516, player_points_data_1617, 
-      player_points_data_1718, player_points_data_1819) -> master_player_points_data
+player_toi_data_1819 <- player_toi_data_1819[,c(2:31)]
+player_points_data_1819 <- player_points_data_1819[,c(2:32)]
+player_corsi_data_1819 <- player_corsi_data_1819[,c(2:33)]
 
-#combine toi tables
-rbind(player_toi_data_1516, player_toi_data_1617, 
-      player_toi_data_1718, player_toi_data_1819) -> master_player_toi_data
+#add swehockey names to 1819 data
+player_toi_data_1819 %>%
+  left_join(player_lookup_1819, by = c("name" = "shlse")) %>%
+  rename(swehockey_name = swehockey) -> player_toi_data_1819
 
-#combine corsi tables
-rbind(player_corsi_data_1516, player_corsi_data_1617, 
-      player_corsi_data_1718, player_corsi_data_1819) -> master_player_corsi_data
+player_points_data_1819 %>%
+  left_join(player_lookup_1819, by = c("name" = "shlse")) %>%
+  rename(swehockey_name = swehockey) -> player_points_data_1819
 
-player_toi_data_1920_v2 <- player_toi_data_1920
-player_corsi_data_1920_v2 <- player_corsi_data_1920
-player_ev_data_1920_v2 <- player_ev_data_1920
-player_points_data_1920_v2 <- player_points_data_1920
-team_corsi_data_1920_v2 <- team_corsi_data_1920
+player_corsi_data_1819 %>%
+  left_join(player_lookup_1819, by = c("name" = "shlse")) %>%
+  rename(swehockey_name = swehockey) -> player_corsi_data_1819
 
+#mutate in season column to everything
+#1819
+player_toi_data_1819 %>%
+  mutate(season = '18/19') -> player_toi_data_1819
 
+player_points_data_1819 %>%
+  mutate(season = '18/19') -> player_points_data_1819
 
-#player_toi_data_1920_v2 %>%
-  #left_join(player_lookup_1920, by = c("name" = "shlse")) %>% 
-  #rename(swehockey_name = swehockey) -> player_toi_data_1920_v2
+player_corsi_data_1819 %>%
+  mutate(season = '18/19') -> player_corsi_data_1819
 
+#1920
+player_toi_data_1920 %>%
+  mutate(season = '19/20') -> player_toi_data_1920
 
-player_lookup_1920 <- player_lookup_1920[-c(259),]
+player_points_data_1920 %>%
+  mutate(season = '19/20') -> player_points_data_1920
 
-#Scratch Work
-dif_forwards_toi <- player_toi_data_1920 %>%
-  filter(shlse_team_name == 'Djurgården') %>%
-  filter(Pos == 'F') %>%
-  select(swehockey_name, game_number, ESTOI)
-
-dif_forwards_toi <- melt(dif_forwards_toi) 
-
-test_visual <- ggplot(dif_forwards_toi, 
-                     aes(x = game_number, y = ESTOI, fill = Variable)) +
-  geom_line(stat = "identity")
-
+player_corsi_data_1920 %>%
+  mutate(season = '19/20') -> player_corsi_data_1920
 
 
-player_toi_data_1920 <- read.csv("player_toi_data_1920.csv", stringsAsFactors = FALSE)
-player_toi_data_1920 <- player_toi_data_1920[,c(2:32)]
+player_toi_data_1718 <- player_toi_data_1718[,c(2:31)]
+player_points_data_1718 <- player_points_data_1718[,c(2:32)]
+player_corsi_data_1718 <- player_corsi_data_1718[,c(2:33)]
 
-player_points_data_1920 <- read.csv("player_points_data_1920.csv", stringsAsFactors = FALSE)
-player_points_data_1920 <- player_points_data_1920[,c(2:33)]
+#add swehockey names to 1718 data
+player_toi_data_1718 %>%
+  left_join(player_lookup_1718, by = c("name" = "shlse")) %>%
+  rename(swehockey_name = swehockey) -> player_toi_data_1718
 
-player_corsi_data_1920 <- read.csv("player_corsi_data_1920.csv", stringsAsFactors = FALSE)
-player_corsi_data_1920 <- player_corsi_data_1920[,c(2:34)]
+player_points_data_1718 %>%
+  left_join(player_lookup_1718, by = c("name" = "shlse")) %>%
+  rename(swehockey_name = swehockey) -> player_points_data_1718
 
-player_ev_data_1920 <- read.csv("player_ev_data_1920.csv", stringsAsFactors = FALSE)
-player_ev_data_1920 <- player_ev_data_1920[,c(2:28)]
+player_corsi_data_1718 %>%
+  left_join(player_lookup_1718, by = c("name" = "shlse")) %>%
+  rename(swehockey_name = swehockey) -> player_corsi_data_1718
+
+#mutate in season column to everything 1718
+player_toi_data_1718 %>%
+  mutate(season = '17/18') -> player_toi_data_1718
+
+player_points_data_1718 %>%
+  mutate(season = '17/18') -> player_points_data_1718
+
+player_corsi_data_1718 %>%
+  mutate(season = '17/18') -> player_corsi_data_1718
+
+
+#bind tables together
+player_toi_data_master <- rbind(player_toi_data_1718, player_toi_data_1819, player_toi_data_1920)
+player_points_data_master <- rbind(player_points_data_1718, player_points_data_1819, player_points_data_1920)
+player_corsi_data_master <- rbind(player_corsi_data_1718, player_corsi_data_1819, player_corsi_data_1920)
+
+
+#template for renaming columns that are misaligned
+player_corsi_data_1718 <- player_corsi_data_1718 %>%
+  rename(
+         `CF%_off` = `CF._off`,
+         `FF%_off` = `FF._off`,
+         `CF%` = `CF.`,
+         `FF%` = `FF.`)
+
+
+# player_names_1718 <- unique(player_corsi_data_1718$name) %>%
+#   as_tibble()
+
+
