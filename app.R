@@ -1,32 +1,37 @@
-library(shiny)
-library(ggplot2)
-library(dplyr)
-library(ggpubr)
-library(ggthemes)
-library(reshape2)
-library(extrafont)
-library(ggplot2)
-library(grid)
-library(gridExtra)
+# Code to run Svengelska Hockey Shiny App
+
+
+# Install Packages --------------------------------------------------------
+
+#install this specific version of broom
+
+#require(remotes)
+#install_version("broom", version = "0.5.6", repos = "http://cran.us.r-project.org")
+
 library(tidyverse)
-library(zoo)
-#library(cowplot)
+library(broom)
 
-font_import()
+library(shiny)
+#library(tidyverse)
+library(ggplot2)
+library(shinythemes)
+library(DT) #make manipulations to data tables
+library(dplyr)
+library(ggpubr) #player cards
+library(ggthemes) #players cards
+library(reshape2) #transform data used in player cards
+library(extrafont)
+library(grid) #align multiple player cards
+library(gridExtra) #align multiple player cards
+library(zoo) #moving averages
+library(purrr) #set_names function
+library(rstatix)
 
-# Data --------------------------------------------------------------------
+library(bootstraplib) #test different styling
 
+# Import Stats (Updates Every Refresh) ------------------------------------
 
-#player_toi_data_1920 <- read.csv("player_toi_data_1920.csv", stringsAsFactors = FALSE)
-#player_points_data_1920 <- read.csv("player_points_data_1920.csv", stringsAsFactors = FALSE)
-#player_corsi_data_1920 <- read.csv("player_corsi_data_1920.csv", stringsAsFactors = FALSE)
-#player_ev_data_1920 <- read.csv("player_ev_data_1920.csv", stringsAsFactors = FALSE)
-#player_names_1920 <- read.csv("player_names_1920.csv", stringsAsFactors = FALSE)
-#box_score_data_1920 <- read.csv("box_score_data_1920_condensed.csv", stringsAsFactors = FALSE)
-
-#sort(player_names_1920$x) -> player_names_1920
-
-#new master data
+# Administrative Data
 player_names_master <- read.csv("player_names_master.csv", stringsAsFactors = FALSE)
 player_toi_data_master <- read.csv("player_toi_data_master.csv", stringsAsFactors = FALSE)
 player_points_data_master <- read.csv("player_points_data_master.csv", stringsAsFactors = FALSE)
@@ -35,369 +40,60 @@ box_score_data_master <- read.csv("box_score_data_master.csv", stringsAsFactors 
 
 sort(player_names_master$x) -> player_names_master
 
-# Player Card Function ----------------------------------------------------
+# Team Data (temporarily just the 19/20 season)
+team_corsi_data_1920_team <- read.csv("team_corsi_data_1920_team.csv", stringsAsFactors = FALSE)
+team_pp_data_1920 <- read.csv("team_pp_data_1920.csv", stringsAsFactors = FALSE)
+team_pk_data_1920 <- read.csv("team_pk_data_1920.csv", stringsAsFactors = FALSE)
 
-player_card3 <- function(player_name, season_year) {
-  
-  
-  #for plot title - identify which teams a player played for
-  #ends up being plugged into the TOI visual
-  teams <- player_toi_data_master %>%
-    filter(swehockey_name == player_name) %>%
-    filter(season == season_year) %>%
-    select(swehockey_name, shlse_team_name, game_number)
-  
-  teams <- teams[order(teams$game_number),]
-  teams_list <- unique(teams$shlse_team_name)
-  
-  #TOI
-  #create one-off table to expand y axis as needed - will use this later
-  y_toi_axis <- player_toi_data_master %>%
-    filter(swehockey_name == player_name) %>%
-    filter(season == season_year)
-  
-  #pull relevant data from master
-  table_toi <- player_toi_data_master %>%
-    filter(swehockey_name == player_name) %>%
-    filter(season == season_year) %>%
-    select(game_number, ESTOI, PPTOI, SHTOI) %>%
-    #rename it for what displays in the legend
-    rename(ES = ESTOI, PP = PPTOI, SH = SHTOI)
-  
-  #melt so can plot a stacked column (only way to create stacked column?)
-  table_toi2 <- melt(table_toi, id.var="game_number") %>%
-    rename(GameNumber = game_number, Situation = variable, TOI = value)
-  
-  #create the order of those stacked components - don't fully understand why this is necessary
-  levels(table_toi2$Situation)
-  table_toi2$Situation <- factor(table_toi2$Situation, levels = rev(levels(table_toi2$Situation)))
-  
-  #ggplot for the toi visual
-  toi_visual <- ggplot(table_toi2[order(table_toi2$Situation),], 
-                       aes(x = GameNumber, y = TOI, fill = Situation)) +
-    geom_bar(stat = "identity") +
-    
-    #creating the title for the overall plot, plus the TOI subheader data
-    labs(title = paste(player_name, " ", season_year, " Season | ", y_toi_axis$shlse_team_name, " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-         subtitle = paste("TOI by Game Situation \n",
-                          round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-                          round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-                          round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = '')) +
-    
-    theme_few() +
-    theme(text = element_text(family = "Sweden Sans")) +
-    theme(plot.title = element_text(face = "bold")) +
-    theme(axis.title.x = element_blank()) +
-    scale_fill_manual(values=c("#FF7F7F", "#FFD17F", "#7F7FFF")) +
-    #x axis spans entire 52 game season
-    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-    #default y axis goes from 0 to 20 minutes
-    scale_y_continuous(limits = c(0, 20), expand = c(0, 0))
-  
-  #but for players with games > 20 minutes, this is where the y axis table comes in
-  if(max(y_toi_axis$TOI) > 20){
-    toi_visual <- toi_visual + scale_y_continuous(limits=c(0, max(y_toi_axis$TOI) + 1),
-                                                  expand = c(0, 0))
-  }
-  
-  if(length(teams_list) == 2){
-    toi_visual <- toi_visual + labs(title = paste(player_name, " ", season_year, " Season | ", teams_list[1], ", ", teams_list[2], " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-                                    subtitle = paste("TOI by Game Situation \n",
-                                                     round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-                                                     round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-                                                     round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = ''))
-  }
-  
-  if(length(teams_list) == 3){
-    toi_visual <- toi_visual + labs(title = paste(player_name, " ", season_year, " Season | ", teams_list[1], ", ", teams_list[2], ", ", teams_list[3], " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-                                    subtitle = paste("TOI by Game Situation \n",
-                                                     round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-                                                     round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-                                                     round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = ''))
-  }
-  
-  
-  #Points
-  y_points_axis <- player_points_data_master %>%
-    filter(swehockey_name == player_name) %>%
-    filter(season == season_year)
-      
-  table_points <- player_points_data_master %>%
-    filter(swehockey_name == player_name) %>%
-    filter(season == season_year) %>%
-    select(game_number, G, A1, A2)
-  
-  table_points_2 <- melt(table_points, id.var="game_number") %>%
-    rename(GameNumber = game_number, PointType = variable, Points = value)
-  
-  levels(table_points_2$PointType)
-  table_points_2$PointType <- factor(table_points_2$PointType, levels = rev(levels(table_points_2$PointType)))
-  
-  points_visual <- ggplot(table_points_2[order(table_points_2$PointType),], 
-                          aes(x = GameNumber, y = Points, fill = PointType)) +
-    geom_bar(stat = "identity") +
-    
-    labs(subtitle = paste("Point Production \n",
-                          sum(table_points$G), ' G  -  ',
-                          sum(table_points$A1), ' A1  -  ',
-                          sum(table_points$A2), ' A2  (',
-                          
-                          round((sum(y_points_axis$TP) / sum(y_toi_axis$TOI)) * 60, 2),
-                          
-                          ' P/60)',
-                          
-                          sep = '')) +
-    theme_few() +
-    theme(text = element_text(family = "Sweden Sans")) +
-    theme(axis.title.x = element_blank()) +
-    scale_fill_manual(values=c("#CCE4CC", "#B2B2FF", "#7F7FFF")) +
-    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) + 
-    scale_y_continuous(limits = c(0, 3), expand = c(0, 0))
-  
-  if(max(y_points_axis$TP) > 3){
-    points_visual <- points_visual + scale_y_continuous(limits=c(0, max(y_points_axis$TP)),
-                                                        expand = c(0, 0))
-  }
-  
-  #Corsi
-  y_corsi_axis <- player_corsi_data_master %>%
-    filter(swehockey_name == player_name) %>%
-    filter(season == season_year) %>%
-    #select(gameNumber, CF, CA) %>%
-    mutate(CA2 = CA * -1) %>%
-    select(-c(CA)) %>%
-    rename(CA = CA2) %>%
-    mutate(CA_abs = abs(CA))
-  
-  #storing values to calculate stats for subheader (CF%, relative CF%)
-  player_corsi <- round((sum(y_corsi_axis$CF) / (sum(y_corsi_axis$CF) + sum(y_corsi_axis$CA_abs)) *100), 1)
-  player_off_corsi <- round((sum(y_corsi_axis$CF_off) / (sum(y_corsi_axis$CF_off) + sum(y_corsi_axis$CA_off)) *100), 1)
-  CF_rel <- player_corsi - player_off_corsi
-  
-  table_corsi <- player_corsi_data_master %>%
-    filter(swehockey_name == player_name) %>%
-    filter(season == season_year) %>%
-    select(game_number.x, CF, CA) %>%
-    mutate(CA2 = CA * -1) %>%
-    select(-c(CA)) %>%
-    rename(CA = CA2)
-  
-  game_number <- tibble(c(1:52)) %>% set_names('number')
-  
-  shot_data <- 
-    left_join(player_corsi_data_master, player_toi_data_master, by = "name_date") %>%
-    filter(swehockey_name.x == player_name) %>%
-    filter(season.x == season_year) %>%
-    select(game_number.x, CF, CA, ESTOI) %>%
-    mutate(player_game_number = row_number()) %>%
-    
-    mutate(CFL5 = ifelse(player_game_number >= 5,
-                         rollsumr(CF, 5, fill = NA),
-                         0)) %>%
-    mutate(CAL5 = ifelse(player_game_number >= 5,
-                         rollsumr(CA, 5, fill = NA),
-                         0)) %>%
-    mutate(ESTOIL5 = ifelse(player_game_number >= 5,
-                            rollsumr(ESTOI, 5, fill = NA),
-                            0)) %>%
-    
-    mutate(CF60 = round((CFL5 / ESTOIL5) * 60, 1)) %>%
-    mutate(CA60 = round((CAL5 / ESTOIL5) * 60, 1))
-  
-  shot_data %>%
-    select(game_number.x, CF60, CA60) -> shot_data_condensed
-  
-  left_join(game_number, shot_data_condensed, by = c("number" = "game_number.x")) -> shot_data_condensed
-  
-  shot_data_condensed <- reshape2::melt(shot_data_condensed, id.var = "number") %>%
-    rename(ShotType = variable, Shots = value)
-  
-  corsi_visual <- ggplot(shot_data_condensed, aes(x = number, y = Shots, color = `ShotType`)) +
-    geom_line(size = 1.25) +
-    geom_line(aes(y = 53.7), color = "#B2B2FF", size = 0.66, linetype = 'dotted') +
-    
-    labs(subtitle = paste("Shot Rates Per 60, 5-Game Moving Avg. \n",
-                          
-                          # round((sum(shot_data$CF) / sum(shot_data$ESTOI)) * 60, 1), ' CF60, ',
-                          # 
-                          # round((sum(shot_data$CA) / sum(shot_data$ESTOI)) * 60, 1), ' CA60, ',
-                          
-                          round((sum(table_corsi$CF) / (sum(table_corsi$CF) + sum(y_corsi_axis$CA_abs)) *100), 1),
-                          ' CF%',
-                          
-                          ' (', round(CF_rel, 1),' rel)', sep = '')) +
-    
-    
-    theme_few() +
-    theme(text = element_text(family = "Sweden Sans")) +
-    guides(fill = guide_legend(reverse = TRUE)) +
-    #red, black
-    scale_color_manual(values=c("#7F7F7F", "#FE7F7E")) +
-    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-    scale_y_continuous(limits = c(20,80), expand = c(0, 0)) +
-    theme(axis.title.x = element_blank()) 
-  
-  #if someone played 10 or fewer games
-  if(NROW(table_toi$ES) < 11){
-    
-    table_corsi_2 <- melt(table_corsi, id.var="game_number.x") %>%
-      rename(GameNumber = game_number.x, ShotType = variable, Shots = value)
-    
-    levels(table_corsi_2$Type)
-    table_corsi_2$ShotType <- factor(table_corsi_2$ShotType, levels = rev(levels(table_corsi_2$ShotType)))
-    
-    corsi_visual <- ggplot(table_corsi_2[order(table_corsi_2$ShotType),],
-                           aes(x = GameNumber, y = Shots, fill = ShotType)) +
-      geom_bar(stat = "identity") +
-      
-      labs(subtitle = paste("Corsi For and Against \n",
-                            round((sum(table_corsi$CF) / (sum(table_corsi$CF) + sum(y_corsi_axis$CA_abs)) *100), 1),
-                            ' CF%',
-                            
-                            ' (', round(CF_rel, 1),' rel)', sep = '')) +
-      
-      theme_few() +
-      theme(text = element_text(family = "Sweden Sans")) +
-      theme(axis.title.x = element_blank()) +
-      #flip the order of the legend so CF is on top and CA is on the bottom
-      guides(fill = guide_legend(reverse = TRUE)) +
-      #red, black
-      scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-      scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-      scale_y_continuous(limits = c(-20, 20), expand = c(0, 0))
-    
-    if(max(y_corsi_axis$CF, y_corsi_axis$CA_abs) > 20){
-      corsi_visual <- corsi_visual + scale_y_continuous(limits=c(max(y_corsi_axis$CF, y_corsi_axis$CA_abs) * -1, max(y_corsi_axis$CF,y_corsi_axis$CA_abs)),
-                                                        expand = c(0, 0))
-    }
-  }
-  
-  #Goals
-  #creating an empty table - will merge goal data in later
-  game_numbers <- tibble(c(1:52)) %>%
-    set_names("game_number")
-  
-  #for people on for no goals
-  empty_goals <- tibble(game_number = c(1:52), GF = 0, GA = 0)
-  
-  empty_goals_2 <- melt(empty_goals, id.var = "game_number") %>%
-    rename(GameNumber = game_number, GoalType = variable, Goals = value)
-  
-  levels(empty_goals_2$GoalType)
-  empty_goals_2$GoalType <- factor(empty_goals_2$GoalType, levels = rev(levels(empty_goals_2$GoalType)))
-  #end of people on for no goals
-  
-  GF_data <- box_score_data_master %>%
-    subset(grepl(player_name, GF_names)) %>%
-    filter(season == season_year) %>%
-    filter(game_situation == '5v5') %>%
-    select(GF_names, gf_team_game_number) %>%
-    mutate(count = 1) %>%
-    select(-c(GF_names)) %>%
-    group_by(gf_team_game_number) %>%
-    summarise(GF = sum(count))
-  
-  GA_data <- box_score_data_master %>%
-    subset(grepl(player_name, GA_names)) %>%
-    filter(season == season_year) %>%
-    filter(game_situation == '5v5') %>%
-    select(GA_names, ga_team_game_number) %>%
-    mutate(count = 1) %>%
-    select(-c(GA_names)) %>%
-    group_by(ga_team_game_number) %>%
-    summarise(GA = sum(count))
-  
-  y_goals_axis <- merge(game_numbers, GF_data, by.x = "game_number",
-                        by.y = "gf_team_game_number", all.x = TRUE)
-  
-  y_goals_axis <- merge(y_goals_axis, GA_data, by.x = "game_number",
-                        by.y = "ga_team_game_number", all.x = TRUE)
-  
-  y_goals_axis <- y_goals_axis %>%
-    mutate(GA2 = GA * -1) %>%
-    select(-c(GA)) %>%
-    rename(GA = GA2) %>%
-    mutate(GA_abs = abs(GA))
-  
-  table_goals <- y_goals_axis %>%
-    select(-c(GA_abs))
-  
-  table_goals_2 <- melt(table_goals, id.var = "game_number") %>%
-    rename(GameNumber = game_number, GoalType = variable, Goals = value)
-  
-  levels(table_goals_2$GoalType)
-  table_goals_2$GoalType <- factor(table_goals_2$GoalType, levels = rev(levels(table_goals_2$GoalType)))
-  
-  table_goals[is.na(table_goals)] <- 0
-  y_goals_axis[is.na(y_goals_axis)] <- 0
-  
-  goals_visual <- ggplot(table_goals_2[order(table_goals_2$GoalType),],
-                         aes(x = GameNumber, y = Goals, fill = GoalType)) +
-    geom_bar(stat = "identity") +
-    
-    labs(subtitle = paste('5v5 Goals For and Against \n',
-                          sum(table_goals$GF), ' GF  -  ',
-                          sum(y_goals_axis$GA_abs), ' GA ',
-                          #round(sum(table_goals$GF)/(sum(table_goals$GF) +  sum(y_goals_axis$GA_abs)), 2), ' GF% ',
-                          sep = '')) +
-    labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_swe'), sep = '') +
-    
-    theme_few() +
-    theme(text = element_text(family = "Sweden Sans")) +
-    guides(fill = guide_legend(reverse = TRUE)) +
-    #red, black
-    scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-    scale_y_continuous(limits = c(-3, 3), expand = c(0, 0))
-  
-  # if the axis needs to be expanded
-  if(max(y_goals_axis$GF, y_goals_axis$GA_abs) > 3){
-    goals_visual <- goals_visual + scale_y_continuous(limits=c(max(y_goals_axis$GF, y_goals_axis$GA_abs) * -1, max(y_goals_axis$GF,y_goals_axis$GA_abs)),
-                                                      expand = c(0, 0))
-    
-  }
-  
-  #if the player hasn't been on for a goal
-  if(sum(y_goals_axis$GF) + sum(y_goals_axis$GA_abs) == 0) {
-    
-    goals_visual <- ggplot(empty_goals_2[order(empty_goals_2$GoalType),],
-                           aes(x = GameNumber, y = Goals, fill = GoalType)) +
-      geom_bar(stat = "identity") +
-      labs(subtitle = paste('5v5 Goals For and Against \n',
-                            0, ' GF  -  ',
-                            0, ' GA ',
-                            #round(sum(table_goals$GF)/(sum(table_goals$GF) +  sum(y_goals_axis$GA_abs)), 2), ' GF% ',
-                            sep = '')) +
-      labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_swe'), sep = '') +
-      theme_few() +
-      theme(text = element_text(family = "Sweden Sans")) +
-      guides(fill = guide_legend(reverse = TRUE)) +
-      #red, black
-      scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-      scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-      scale_y_continuous(limits = c(-3, 3), expand = c(0, 0))
-    
-  }
-  
-  #aliases for each of the visuals
-  g2 <- ggplotGrob(toi_visual)
-  g3 <- ggplotGrob(corsi_visual)
-  g4 <- ggplotGrob(goals_visual)
-  g5 <- ggplotGrob(points_visual)
-  #old method - this broke after updating corsi visual to rolling average
-  g <- rbind(g2, g5, g3, g4, size = "first")
-  g$widths <- unit.pmax(g2$widths, g5$widths, g3$widths, g4$widths)
-  grid.newpage()
-  grid.draw(g)
-  
-  #use cowplot to align the plots now
-  #g <- cowplot::plot_grid(g2, g5, g3, g4, ncol = 1, align = 'v', axis = 'lr')
-  
-  return(g)
-  
-}
+team_goals_data_master <- read.csv("team_goals_data_master.csv", stringsAsFactors = FALSE)
+team_pp_data_master <- read.csv("team_pp_data_master.csv", stringsAsFactors = FALSE)
+team_pk_data_master <- read.csv("team_pk_data_master.csv", stringsAsFactors = FALSE)
+team_shotsfor_data_master <- read.csv("team_shotsfor_data_master.csv", stringsAsFactors = FALSE)
+team_shotsagainst_data_master <- read.csv("team_shotsagainst_data_master.csv", stringsAsFactors = FALSE)
+team_corsi_data_master_team <- read.csv("team_corsi_data_master_team.csv", stringsAsFactors = FALSE)
 
-player_card4 <- function(player_name, season_year) {
+swehockey_team_names <- team_corsi_data_master_team$swehockey_team_name %>% unique() %>% sort()
+
+# Player Stats Data
+`5v5` <- read.csv("player_5v5_data_master.csv", stringsAsFactors = FALSE)
+EV <- read.csv("player_es_data_master.csv", stringsAsFactors = FALSE)
+PP <- read.csv("player_pp_data_master.csv", stringsAsFactors = FALSE)
+SH <- read.csv("player_sh_data_master.csv", stringsAsFactors = FALSE)
+`All Sits` <- read.csv("player_allsits_data_master.csv", stringsAsFactors = FALSE)
+`PS/SO` <- read.csv("player_1v0_data_master.csv", stringsAsFactors = FALSE)
+`3v3` <- read.csv("player_3v3_data_master.csv", stringsAsFactors = FALSE)
+`4v4` <- read.csv("player_4v4_data_master.csv", stringsAsFactors = FALSE)
+`5v4` <- read.csv("player_5v4_data_master.csv", stringsAsFactors = FALSE)
+`5v3` <- read.csv("player_5v3_data_master.csv", stringsAsFactors = FALSE)
+`Empty Net` <- read.csv("player_eng_data_master.csv", stringsAsFactors = FALSE)
+
+# Clean up syntax of column names
+EV <- EV %>% rename(`GF%` = `GF.`, `TOI/GP` = `TOI.GP`)
+PP <- PP %>% rename(`GF%` = `GF.`, `TOI/GP` = `TOI.GP`)
+SH <- SH %>% rename(`GF%` = `GF.`, `TOI/GP` = `TOI.GP`)
+`All Sits` <- `All Sits` %>% rename(`GF%` = `GF.`, `TOI/GP` = `TOI.GP`)
+`5v5` <- `5v5` %>% rename(`GF%` = `GF.`, `CF%` = `CF.`)
+`3v3` <- `3v3` %>% rename(`GF%` = `GF.`)
+`4v4` <- `4v4` %>% rename(`GF%` = `GF.`)
+`5v4` <- `5v4` %>% rename(`GF%` = `GF.`)
+`5v3` <- `5v3` %>% rename(`GF%` = `GF.`)
+`Empty Net` <- `Empty Net` %>% rename(`GF%` = `GF.`)
+
+# Team Stats Data
+`5v5 ` <- read.csv("team_5v5_data.csv", stringsAsFactors = FALSE)
+`PP ` <- read.csv("team_pp_data.csv", stringsAsFactors = FALSE)
+`SH ` <- read.csv("team_pk_data.csv", stringsAsFactors = FALSE)
+`EV ` <- read.csv("team_ev_data.csv", stringsAsFactors = FALSE)
+
+# Clean up syntax of column names
+`5v5 ` <- `5v5 ` %>% rename(`GF%` = `GF.`, `CF%` = `CF.`, `FF%` = `FF.`)
+`PP ` <- `PP ` %>% rename(`GF%` = `GF.`, `Sh%` = `Sh.`)
+`SH ` <- `SH ` %>% rename(`GF%` = `GF.`, `Sv%` = `Sv.`)
+`EV ` <- `EV ` %>% rename(`GF%` = `GF.`)
+
+# Key Functions -----------------------------------------------------------
+
+player_card <- function(player_name, season_year) {
   
   
   #for plot title - identify which teams a player played for
@@ -433,7 +129,7 @@ player_card4 <- function(player_name, season_year) {
   table_toi2$Situation <- factor(table_toi2$Situation, levels = rev(levels(table_toi2$Situation)))
   
   #ggplot for the toi visual
-  toi_visual <- ggplot(table_toi2[order(table_toi2$Situation),], 
+  toi_visual <- ggplot(table_toi2[order(table_toi2$Situation),],
                        aes(x = GameNumber, y = TOI, fill = Situation)) +
     geom_bar(stat = "identity") +
     
@@ -452,7 +148,8 @@ player_card4 <- function(player_name, season_year) {
     #x axis spans entire 52 game season
     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
     #default y axis goes from 0 to 20 minutes
-    scale_y_continuous(limits = c(0, 20), expand = c(0, 0)) 
+    scale_y_continuous(limits = c(0, 20), expand = c(0, 0)) +
+    theme(text = element_text(size = 9.5))
   
   #but for players with games > 20 minutes, this is where the y axis table comes in
   if(max(y_toi_axis$TOI) > 20){
@@ -461,7 +158,7 @@ player_card4 <- function(player_name, season_year) {
   }
   
   if(length(teams_list) == 2){
-    toi_visual <- toi_visual + labs(title = paste(player_name, " ", season_year, " Season | ", teams_list[1], ", ", teams_list[2], " | ", NROW(table_toi$ES), ' GP',  sep = ''),
+    toi_visual <- toi_visual + labs(title = paste(player_name, " ", season_year, " Season | ", teams_list[1], ", ", teams_list[2], " | ", NROW(table_toi$EV), ' GP',  sep = ''),
                                     subtitle = paste("TOI by Game Situation \n",
                                                      round(sum(table_toi$EV)/NROW(table_toi$EV), 1), ' EV  -  ',
                                                      round(sum(table_toi$PP)/NROW(table_toi$EV), 1), ' PP  -  ',
@@ -469,7 +166,7 @@ player_card4 <- function(player_name, season_year) {
   }
   
   if(length(teams_list) == 3){
-    toi_visual <- toi_visual + labs(title = paste(player_name, " ", season_year, " Season | ", teams_list[1], ", ", teams_list[2], ", ", teams_list[3], " | ", NROW(table_toi$ES), ' GP',  sep = ''),
+    toi_visual <- toi_visual + labs(title = paste(player_name, " ", season_year, " Season | ", teams_list[1], ", ", teams_list[2], ", ", teams_list[3], " | ", NROW(table_toi$EV), ' GP',  sep = ''),
                                     subtitle = paste("TOI by Game Situation \n",
                                                      round(sum(table_toi$EV)/NROW(table_toi$EV), 1), ' EV  -  ',
                                                      round(sum(table_toi$PP)/NROW(table_toi$EV), 1), ' PP  -  ',
@@ -711,10 +408,10 @@ player_card4 <- function(player_name, season_year) {
   
   table_points_2 <- melt(table_points, id.var="game_number") %>%
     rename(GameNumber = game_number, PointType = variable, Points = value)
-
+  
   levels(table_points_2$PointType)
   table_points_2$PointType <- factor(table_points_2$PointType, levels = rev(levels(table_points_2$PointType)))
-
+  
   # table_points_2$PointType <- factor(table_points_2$PointType, levels=c("ES_G", "ES_A", "PP_G", "PP_A",
   #                                                                       "SH_G", "SH_A", "PS_G"))
   
@@ -727,9 +424,9 @@ player_card4 <- function(player_name, season_year) {
   table_points_2$PointType <- factor(table_points_2$PointType, levels=c("EN_A", "SH_A", "PP_A", "EV_A",
                                                                         "PS_G", "EN_G", "SH_G", "PP_G", "EV_G"))
   
-  # table_points_2$PointType <- factor(table_points_2$PointType, levels=c("PS_G", "EN_A", "EN_G", "SH_A", 
+  # table_points_2$PointType <- factor(table_points_2$PointType, levels=c("PS_G", "EN_A", "EN_G", "SH_A",
   #                                                                       "SH_G", "PP_A", "PP_G", "ES_A", "ES_G"))
-                                                                        
+  
   
   es_g_hex <- "#7f7fff"
   es_a_hex <- "#b2b2ff"
@@ -742,9 +439,9 @@ player_card4 <- function(player_name, season_year) {
   ps_g_hex <- "#abd3ab"
   en_g_hex <- "#ca80ff"
   en_a_hex <- "#FDB3FF"
-                                                                      
-                                                                
-  points_visual <- ggplot(table_points_2[order(table_points_2$PointType),], 
+  
+  
+  points_visual <- ggplot(table_points_2[order(table_points_2$PointType),],
                           aes(x = GameNumber, y = Points, fill = PointType)) +
     geom_bar(stat = "identity") +
     
@@ -752,33 +449,33 @@ player_card4 <- function(player_name, season_year) {
     #                       sum(table_points_old$G), ' G  -  ',
     #                       sum(table_points_old$A1), ' A1  -  ',
     #                       sum(table_points_old$A2), ' A2  (',
-    #                       
+    #
     #                       round((sum(y_points_axis$TP) / sum(y_toi_axis$TOI)) * 60, 2),
-    #                       
+    #
     #                       ' P/60)',
-    #                       
+    #
     #                       sep = '')) +
-    
-    labs(subtitle = paste("Point Production \n",
-                          "EV: ",
-                          sum(table_points$EV_G), ' G  -  ',
-                          sum(table_points$EV_A), ' A  -  ',
-                          (sum(table_points$EV_G) + sum(table_points$EV_A)), ' P  (',
-                          
-                          round(((sum(table_points$EV_G) + sum(table_points$EV_A)) / sum(table_toi$EV)) * 60, 2),
-                          
-                          ' P/60)  |  ',
-                          
-                          "PP: ",
-                          sum(table_points$PP_G), ' G  -  ',
-                          sum(table_points$PP_A), ' A  -  ',
-                          (sum(table_points$PP_G) + sum(table_points$PP_A)), ' P  (',
-                          
-                          round(((sum(table_points$PP_G) + sum(table_points$PP_A)) / sum(table_toi$PP)) * 60, 2),
-                          
-                          ' P/60)',
-                          
-                          sep = '')) +
+  
+  labs(subtitle = paste("Point Production \n",
+                        "EV: ",
+                        sum(table_points$EV_G), ' G  -  ',
+                        sum(table_points$EV_A), ' A  -  ',
+                        (sum(table_points$EV_G) + sum(table_points$EV_A)), ' P  (',
+                        
+                        round(((sum(table_points$EV_G) + sum(table_points$EV_A)) / sum(table_toi$EV)) * 60, 2),
+                        
+                        ' P/60)  |  ',
+                        
+                        "PP: ",
+                        sum(table_points$PP_G), ' G  -  ',
+                        sum(table_points$PP_A), ' A  -  ',
+                        (sum(table_points$PP_G) + sum(table_points$PP_A)), ' P  (',
+                        
+                        round(((sum(table_points$PP_G) + sum(table_points$PP_A)) / sum(table_toi$PP)) * 60, 2),
+                        
+                        ' P/60)',
+                        
+                        sep = '')) +
     
     theme_few() +
     theme(text = element_text(family = "Sweden Sans")) +
@@ -787,10 +484,11 @@ player_card4 <- function(player_name, season_year) {
     #scale_fill_manual(values=c(es_g_hex, pp_g_hex, sh_g_hex, ps_g_hex, es_a_hex, pp_a_hex, sh_a_hex)) +
     scale_fill_manual(values=c(en_a_hex, sh_a_hex, pp_a_hex, es_a_hex, ps_g_hex, en_g_hex, sh_g_hex, pp_g_hex, es_g_hex)) +
     #scale_fill_manual(values=c(ps_g_hex, en_a_hex, en_g_hex, sh_a_hex, sh_g_hex, pp_a_hex, pp_g_hex, es_a_hex, es_g_hex)) +
-    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) + 
+    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
     scale_y_continuous(limits = c(0, 3), expand = c(0, 0)) +
-    guides(fill = guide_legend(reverse = TRUE)) 
-    #guides(fill=guide_legend(ncol=2))
+    guides(fill = guide_legend(reverse = TRUE)) +
+    theme(text = element_text(size = 9.5))
+  #guides(fill=guide_legend(ncol=2))
   
   # +
   #   guides(fill = guide_legend(reverse = TRUE))
@@ -826,7 +524,7 @@ player_card4 <- function(player_name, season_year) {
   
   game_number <- tibble(c(1:52)) %>% set_names('number')
   
-  shot_data <- 
+  shot_data <-
     left_join(player_corsi_data_master, player_toi_data_master, by = "name_date") %>%
     filter(swehockey_name.x == player_name) %>%
     filter(season.x == season_year) %>%
@@ -861,7 +559,7 @@ player_card4 <- function(player_name, season_year) {
     labs(subtitle = paste("Shot Rates Per 60, 5-Game Moving Avg. \n",
                           
                           # round((sum(shot_data$CF) / sum(shot_data$ESTOI)) * 60, 1), ' CF60, ',
-                          # 
+                          #
                           # round((sum(shot_data$CA) / sum(shot_data$ESTOI)) * 60, 1), ' CA60, ',
                           
                           round((sum(table_corsi$CF) / (sum(table_corsi$CF) + sum(y_corsi_axis$CA_abs)) *100), 1),
@@ -877,7 +575,8 @@ player_card4 <- function(player_name, season_year) {
     scale_color_manual(values=c("#7F7F7F", "#FE7F7E")) +
     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
     scale_y_continuous(limits = c(20,80), expand = c(0, 0)) +
-    theme(axis.title.x = element_blank()) 
+    theme(axis.title.x = element_blank()) +
+    theme(text = element_text(size = 9.5))
   
   #if someone played 10 or fewer games
   if(NROW(table_toi$EV) < 11){
@@ -906,7 +605,8 @@ player_card4 <- function(player_name, season_year) {
       #red, black
       scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
       scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-      scale_y_continuous(limits = c(-20, 20), expand = c(0, 0))
+      scale_y_continuous(limits = c(-20, 20), expand = c(0, 0)) +
+      theme(text = element_text(size = 9.5))
     
     if(max(y_corsi_axis$CF, y_corsi_axis$CA_abs) > 20){
       corsi_visual <- corsi_visual + scale_y_continuous(limits=c(max(y_corsi_axis$CF, y_corsi_axis$CA_abs) * -1, max(y_corsi_axis$CF,y_corsi_axis$CA_abs)),
@@ -990,7 +690,8 @@ player_card4 <- function(player_name, season_year) {
     #red, black
     scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-    scale_y_continuous(limits = c(-3, 3), expand = c(0, 0))
+    scale_y_continuous(limits = c(-3, 3), expand = c(0, 0)) +
+    theme(text = element_text(size = 9.5))
   
   # if the axis needs to be expanded
   if(max(y_goals_axis$GF, y_goals_axis$GA_abs) > 3){
@@ -1017,7 +718,8 @@ player_card4 <- function(player_name, season_year) {
       #red, black
       scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
       scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-      scale_y_continuous(limits = c(-3, 3), expand = c(0, 0))
+      scale_y_continuous(limits = c(-3, 3), expand = c(0, 0)) +
+      theme(text = element_text(size = 9.5))
     
   }
   
@@ -1039,765 +741,1205 @@ player_card4 <- function(player_name, season_year) {
   
 }
 
-# UI ----------------------------------------------------------------------
-
-
-ui <- fluidPage(
-  titlePanel("SHL Game-by-Game Player Cards"),
-  sidebarLayout(
-    sidebarPanel(
-      
-      
-      
-      selectInput("playerName", "Player",
-                  choices = as.list(player_names_master[1:length(player_names_master)]),
-                  #selected = player_names_1920[1],
-                  selected = 'Nils Lundkvist',
-                  width = "250px")
-      
-      ,
-
-      selectInput("season", "Season",
-                  choices = c('17/18', '18/19', '19/20'),
-                  selected = '19/20',
-                  width = '250px')
-      
-    ),
-    mainPanel(
-      plotOutput("playerCard")
-      #tableOutput("toiData")
-    )
-  )
-)
-
-# Server ------------------------------------------------------------------
-
-
-server <- function(input, output) {
+team_card <- function(team, season_year) {
   
+  #TOI by game situation
   
-  output$playerCard <- renderPlot({
+  # pp_toi <- team_pp_data_1920 %>%
+  #   filter(swehockey_team_name == team) %>%
+  #   select(game_number, TOI_PP)
+  
+  team_name <- team_pp_data_master %>%
+    filter(swehockey_team_name == team, season == season_year) %>%
+    select(shlse_team_name) %>%
+    unique()
+  
+  pp_toi <- team_pp_data_master %>%
+    filter(swehockey_team_name == team, season == season_year) %>%
+    select(game_number, TOI_PP)
+  
+  pk_toi <- team_pk_data_master %>%
+    filter(swehockey_team_name == team, season == season_year) %>%
+    select(game_number, TOI_SH)
+  
+  toi_total <- merge(pp_toi, pk_toi)
+  
+  toi_total <- toi_total %>%
+    mutate(TOI_ES = 60 - TOI_PP - TOI_SH) %>%
+    rename(EV = TOI_ES, PP = TOI_PP, SH = TOI_SH) %>%
+    select(game_number, EV, PP, SH) #re-orders the columns
+  
+  toi_table <- toi_total #need a clean table to do calculations on for subtitle
+  
+  toi_total <- melt(toi_total, id.var="game_number") %>%
+    rename(GameNumber = game_number, Situation = variable, TOI = value)
+  
+  levels(toi_total$Situation)
+  toi_total$Situation <- factor(toi_total$Situation, levels = rev(levels(toi_total$Situation)))
+  
+  #ggplot code
+  toi_visual <- ggplot(toi_total[order(toi_total$Situation),],
+                       aes(x = GameNumber, y = TOI, fill = Situation)) +
     
-    #player_card2(input$playerName)
+    geom_bar(stat = "identity") +
     
-    player_card4(input$playerName, input$season)
+    labs(title = paste(team_name, season_year, "Season", "|", NROW(toi_table$EV), 'GP', sep = ' '),
+         
+         subtitle = paste("TOI by Game Situation \n",
+                          round(sum(toi_table$EV)/NROW(toi_table$EV), 1), ' EV  -  ',
+                          round(sum(toi_table$PP)/NROW(toi_table$EV), 1), ' PP  -  ',
+                          round(sum(toi_table$SH)/NROW(toi_table$EV), 1), ' SH', sep = '')) +
     
-  },
+    theme_few() +
+    theme(text = element_text(family = "Sweden Sans")) +
+    theme(plot.title = element_text(face = "bold")) +
+    theme(axis.title.x = element_blank()) +
+    scale_fill_manual(values=c("#FFD17F", "#FF7F7F","#7F7FFF")) +
+    #x axis spans entire 52 game season
+    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
+    #default y axis goes from 0 to 20 minutes
+    scale_y_continuous(limits = c(0, 60.5), expand = c(0, 0)) +
+    theme(text = element_text(size = 9.5))
   
   
-  height = 770, width = 740
+  #5v5 Goals
+  game_number <- tibble(c(1:52)) %>% set_names('game_number')
   
-  )
+  GF <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation == '5v5') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(GF = sum(count))
+  
+  GA <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation == '5v5') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(GA = sum(count))
+  
+  y_goals_axis <- merge(game_number, GF, by.x = 'game_number', by.y = 'gf_team_game_number', all.x = TRUE)
+  y_goals_axis <- merge(y_goals_axis, GA, by.x = 'game_number', by.y = 'ga_team_game_number', all.x = TRUE)
+  y_goals_axis[is.na(y_goals_axis)] <- 0
+  
+  goals_calc <- y_goals_axis #need a clean table for subtitle calculation
+  
+  #make GA a negative number
+  y_goals_axis <- y_goals_axis %>%
+    mutate(GA2 = GA * -1) %>%
+    select(-c(GA)) %>%
+    rename(GA = GA2) %>%
+    mutate(GA_abs = abs(GA)) #in case it's needed to expand the axis later
+  
+  goals_table <- y_goals_axis %>%
+    select(-c(GA_abs))
+  
+  goals_table <- melt(goals_table, id.var = "game_number") %>%
+    rename(GameNumber = game_number, GoalType = variable, Goals = value)
+  
+  levels(goals_table$GoalType)
+  goals_table$GoalType <- factor(goals_table$GoalType, levels = rev(levels(goals_table$GoalType)))
+  
+  
+  #ggplot code
+  goals_visual <- ggplot(goals_table[order(goals_table$GoalType),],
+                         aes(x = GameNumber, y = Goals, fill = GoalType)) +
+    
+    geom_bar(stat = "identity") +
+    
+    labs(subtitle = paste('5v5 Goals For and Against \n',
+                          sum(goals_calc$GF), ' GF  -  ',
+                          sum(goals_calc$GA), ' GA ',
+                          ' (',
+                          round((sum(goals_calc$GF)/(sum(goals_calc$GF) +  sum(goals_calc$GA)) * 100), 1), ' GF%',
+                          ') ',
+                          sep = '')) +
+    
+    #labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_swe'), sep = '') +
+    
+    theme_few() +
+    theme(text = element_text(family = "Sweden Sans")) +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    theme(axis.title.x = element_blank()) +
+    #red, black
+    scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
+    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(-5, 5), expand = c(0, 0), breaks = c(-5,-4,-3,-2,-1,0,1,2,3,4,5)) +
+    #scale_y_continuous(limits = c(-5, 5), expand = c(0, 0), breaks = seq(-5,5, len = 1)) +
+    theme(text = element_text(size = 9.5))
+  
+  # if the axis needs to be expanded
+  if(max(y_goals_axis$GF, y_goals_axis$GA_abs) > 5){
+    goals_visual <- goals_visual + scale_y_continuous(limits=c(max(y_goals_axis$GF, y_goals_axis$GA_abs) * -1, max(y_goals_axis$GF,y_goals_axis$GA_abs)),
+                                                      expand = c(0, 0))
+    
+  }
+  
+  
+  #Shot Rates
+  corsi_data <- team_corsi_data_master_team %>%
+    filter(swehockey_team_name == team, season == season_year) %>%
+    select(game_number, CF, CA)
+  
+  team_corsi <- round((sum(corsi_data$CF) / (sum(corsi_data$CF) + sum(corsi_data$CA)) *100), 1)
+  
+  corsi_data <- left_join(corsi_data, toi_table, by = c("game_number")) %>%
+    select(game_number, CF, CA, EV) %>%
+    
+    mutate(CFL5 = ifelse(game_number >= 5,
+                         rollsumr(CF, 5, fill = NA),
+                         0)) %>%
+    mutate(CAL5 = ifelse(game_number >= 5,
+                         rollsumr(CA, 5, fill = NA),
+                         0)) %>%
+    mutate(ESTOIL5 = ifelse(game_number >= 5,
+                            rollsumr(EV, 5, fill = NA),
+                            0)) %>%
+    
+    mutate(CF60 = round((CFL5 / ESTOIL5) * 60, 1)) %>%
+    mutate(CA60 = round((CAL5 / ESTOIL5) * 60, 1))
+  
+  CF60 <- round(sum(corsi_data$CF) / sum(corsi_data$EV) * 60, 1)
+  CA60 <- round(sum(corsi_data$CA) / sum(corsi_data$EV) * 60, 1)
+  
+  corsi_condensed <- corsi_data %>%
+    select(game_number, CF60, CA60)
+  
+  corsi_condensed <- reshape2::melt(corsi_condensed, id.var = "game_number") %>%
+    rename(ShotType = variable, Shots = value)
+  
+  corsi_visual <- ggplot(corsi_condensed, aes(x = game_number, y = Shots, color = `ShotType`)) +
+    geom_line(size = 1.25) +
+    #geom_line(aes(y = 53.7), color = "#B2B2FF", size = 0.66, linetype = 'dotted') +
+    
+    labs(subtitle = paste("Shot Rates Per 60, 5-Game Moving Avg. \n",
+                          # 
+                          # CF60, ' CF60 - ',
+                          # CA60, ' CA60 (',
+                          team_corsi,
+                          ' CF%',
+                          sep = '')) +
+    
+    
+    theme_few() +
+    theme(text = element_text(family = "Sweden Sans")) +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    #red, black
+    scale_color_manual(values=c("#7F7F7F", "#FE7F7E")) +
+    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(30,70), expand = c(0, 0)) +
+    theme(axis.title.x = element_blank()) +
+    theme(text = element_text(size = 9.5))
+  
+  
+  #Shooting & Save Percentage
+  game_number2 <- tibble(c(1:52)) %>% set_names('game_number')
+  
+  #game_sits_include <- c("EV", "PP", "SH", "Goalie Pulled")
+  #game_sits_exclude <- c("ENG", "SO", "PS")
+  
+  SF <- team_shotsfor_data_master %>%
+    filter(swehockey_team_name == team, season == season_year) %>%
+    select(game_number, SOG)
+  
+  SA <- team_shotsagainst_data_master %>%
+    filter(swehockey_team_name == team, season == season_year) %>%
+    select(game_number, SOGA)
+  
+  #Goals For
+  EVG <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'EV') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(EVG = sum(count))
+  
+  PPG <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'PP') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(PPG = sum(count))
+  
+  SHG <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'SH') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(SHG = sum(count))
+  
+  GPG <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'Goalie Pulled') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(GPG = sum(count))
+  
+  ENG <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'ENG') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(ENG = sum(count))
+  
+  `S/OG` <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'SO') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(`S/OG` = sum(count))
+  
+  PSG <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'PS') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(PSG = sum(count))
+  
+  #Goals Against
+  EVGA <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'EV') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(EVGA = sum(count))
+  
+  PPGA <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'PP') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(PPGA = sum(count))
+  
+  SHGA <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'SH') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(SHGA = sum(count))
+  
+  GPGA <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'Goalie Pulled') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(GPGA = sum(count))
+  
+  ENGA <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'ENG') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(ENGA = sum(count))
+  
+  `S/OGA` <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'SO') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(`S/OGA` = sum(count))
+  
+  PSGA <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'PS') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(PSGA = sum(count))
+  
+  
+  goals <- merge(game_number2, EVG, by.x = 'game_number', by.y = 'gf_team_game_number', all.x = TRUE)
+  goals <- merge(goals, PPG, by.x = 'game_number', by.y = 'gf_team_game_number', all.x = TRUE)
+  goals <- merge(goals, SHG, by.x = 'game_number', by.y = 'gf_team_game_number', all.x = TRUE)
+  goals <- merge(goals, GPG, by.x = 'game_number', by.y = 'gf_team_game_number', all.x = TRUE)
+  goals <- merge(goals, ENG, by.x = 'game_number', by.y = 'gf_team_game_number', all.x = TRUE)
+  goals <- merge(goals, `S/OG`, by.x = 'game_number', by.y = 'gf_team_game_number', all.x = TRUE)
+  goals <- merge(goals, PSG, by.x = 'game_number', by.y = 'gf_team_game_number', all.x = TRUE)
+
+  goals <- merge(goals, EVGA, by.x = 'game_number', by.y = 'ga_team_game_number', all.x = TRUE)
+  goals <- merge(goals, PPGA, by.x = 'game_number', by.y = 'ga_team_game_number', all.x = TRUE)
+  goals <- merge(goals, SHGA, by.x = 'game_number', by.y = 'ga_team_game_number', all.x = TRUE)
+  goals <- merge(goals, GPGA, by.x = 'game_number', by.y = 'ga_team_game_number', all.x = TRUE)
+  goals <- merge(goals, ENGA, by.x = 'game_number', by.y = 'ga_team_game_number', all.x = TRUE)
+  goals <- merge(goals, `S/OGA`, by.x = 'game_number', by.y = 'ga_team_game_number', all.x = TRUE)
+  goals <- merge(goals, PSGA, by.x = 'game_number', by.y = 'ga_team_game_number', all.x = TRUE)
+
+  goals <- merge(goals, SF, by.x = 'game_number', by.y = 'game_number', all.x = TRUE)
+  goals <- merge(goals, SA, by.x = 'game_number', by.y = 'game_number', all.x = TRUE)
+
+  goals[is.na(goals)] <- 0
+  
+  goals <- goals %>%
+    mutate(GF_include = EVG + PPG + SHG + GPG,
+           GF_exclude = ENG + `S/OG` + PSG,
+           GA_include = EVGA + PPGA + SHGA + GPGA,
+           GA_exclude = ENG + `S/OGA` + PSGA,
+           SOG_include = SOG - GF_exclude,
+           SOGA_include = SOGA - GA_exclude) %>%
+    select(game_number, GF_include, SOG_include, GA_include, SOGA_include)
+  
+  sp_data <- goals %>%
+    rename(GF = GF_include, SOG = SOG_include, GA = GA_include, SOGA = SOGA_include) %>%
+
+    mutate(GFL5 = ifelse(game_number >= 5,
+                         rollsumr(GF, 5, fill = NA), 0)) %>%
+    mutate(SOGL5 = ifelse(game_number >= 5,
+                          rollsumr(SOG, 5, fill = NA), 0)) %>%
+
+    mutate(GAL5 = ifelse(game_number >= 5,
+                         rollsumr(GA, 5, fill = NA), 0)) %>%
+    mutate(SOGAL5 = ifelse(game_number >= 5,
+                          rollsumr(SOGA, 5, fill = NA), 0)) %>%
+    
+    mutate(`Sh%` = round(GFL5 / SOGL5, 3) * 100) %>%
+    mutate(`Opp Sh%` = round(GAL5 / SOGAL5, 3) * 100)
+  
+  `Sh%` <- round(sum(sp_data$GF) / sum(sp_data$SOG), 3) * 100
+  `Sv%` <- 100 - (round(sum(sp_data$GA) / sum(sp_data$SOGA), 3) * 100)
+  
+  sp_data_condensed <- sp_data %>%
+    select(game_number, `Sh%`, `Opp Sh%`)
+  
+  sp_data_condensed <- reshape2::melt(sp_data_condensed, id.var = "game_number") %>%
+    rename(Team = variable, `Sh%` = value)
+  
+  sh_visual <- ggplot(sp_data_condensed, aes(x = game_number, y = `Sh%`, color = Team)) +
+    geom_line(size = 1.25) +
+    
+    labs(subtitle = paste("All Sits. Shooting Percentages, 5-Game Moving Avg. \n",
+                          
+                          
+                          
+                          `Sh%`, " Sh%,",
+                          " ", `Sv%`, " Sv%",
+                          sep = '')) +
+    
+    labs(caption = 'All situations included, with empty net goals & penalty shot/shootout goals removed.') +
+    
+    
+    theme_few() +
+    theme(text = element_text(family = "Sweden Sans")) +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    #red, black
+    scale_color_manual(values=c("#7F7F7F", "#FE7F7E")) +
+    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(0,20), expand = c(0, 0)) +
+    theme(axis.title.x = element_blank()) +
+    theme(text = element_text(size = 9.5))
+  
+  #Special Teams Goals
+  game_number3 <- tibble(c(1:52)) %>% set_names('game_number')
+
+  PPG2 <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'PP') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(PPG = sum(count))
+
+  SHG2 <- box_score_data_master %>%
+    filter(gf_team == team, season == season_year, game_situation_general == 'SH') %>%
+    select(gf_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(gf_team_game_number) %>%
+    summarise(SHG = sum(count))
+
+  PPGA2 <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'PP') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(PPGA = sum(count))
+
+  SHGA2 <- box_score_data_master %>%
+    filter(ga_team == team, season == season_year, game_situation_general == 'SH') %>%
+    select(ga_team_game_number, goal) %>%
+    mutate(count = 1) %>%
+    select(-c(goal)) %>%
+    group_by(ga_team_game_number) %>%
+    summarise(SHGA = sum(count))
+
+  st_y_goals_axis <- merge(game_number3, PPG2, by.x = "game_number", by.y = "gf_team_game_number", all.x = TRUE)
+  st_y_goals_axis <- merge(st_y_goals_axis, SHG2, by.x = "game_number", by.y = "gf_team_game_number", all.x = TRUE)
+  st_y_goals_axis <- merge(st_y_goals_axis, PPGA2, by.x = "game_number", by.y = "ga_team_game_number", all.x = TRUE)
+  st_y_goals_axis <- merge(st_y_goals_axis, SHGA2, by.x = "game_number", by.y = "ga_team_game_number", all.x = TRUE)
+  
+  st_y_goals_axis[is.na(st_y_goals_axis)] <- 0
+  
+  st_goals_calc <- st_y_goals_axis
+  
+  st_y_goals_axis <- st_y_goals_axis %>%
+    mutate(PPGA2 = PPGA * -1,
+           SHGA2 = SHGA * -1) %>%
+    
+    select(-c(PPGA, SHGA)) %>%
+    
+    rename(PPGA = PPGA2,
+           SHGA = SHGA2) %>%
+    
+    mutate(GF = PPG + SHG,
+           GA = (PPGA + SHGA) * -1) %>%
+    mutate(GA_abs = abs(GA))
+  
+  ST_GF <- sum(st_y_goals_axis$PPG) + sum(st_y_goals_axis$SHG)
+  ST_GA <- (sum(st_y_goals_axis$PPGA) + sum(st_y_goals_axis$SHGA)) * -1
+  
+  st_goals_table <- st_y_goals_axis %>%
+    select(-c(GF, GA, GA_abs))
+  
+  st_goals_table <- reshape2::melt(st_goals_table, id.var = "game_number") %>%
+    rename(GameNumber = game_number, GoalType = variable, Goals = value)
+
+  levels(st_goals_table$GoalType)
+  st_goals_table$GoalType <- factor(st_goals_table$GoalType, levels = rev(levels(st_goals_table$GoalType)))
+  
+  st_goals_visual <- ggplot(st_goals_table[order(st_goals_table$GoalType),],
+                            aes(x = GameNumber, y = Goals, fill = GoalType)) +
+    
+    geom_bar(stat = "identity") +
+
+    labs(subtitle = paste('Special Teams Goals For and Against \n',
+                          ST_GF, " GF - ",
+                          ST_GA, " GA",
+                          sep = ''
+
+               )) +
+
+    labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_swe'), sep = '') +
+
+    theme_few() +
+    theme(text = element_text(family = "Sweden Sans")) +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    #shga, ppga, shg, ppg
+    scale_fill_manual(values=c("#b2b2ff", "#7F7FFF", "#99D999", "#7fbf7f")) +
+    scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(-3, 3), expand = c(0, 0), breaks = c(-3,-2,-1,0,1,2,3)) +
+    theme(text = element_text(size = 9.5))
+  
+  if(max(st_y_goals_axis$GF, st_y_goals_axis$GA_abs) > 3){
+    st_goals_visual <- st_goals_visual + scale_y_continuous(limits=c(max(st_y_goals_axis$GF, st_y_goals_axis$GA_abs) * -1, max(st_y_goals_axis$GF,st_y_goals_axis$GA_abs)),
+                                                      expand = c(0, 0))
+
+  }
+  
+  
+  #aliases for each of the visuals
+  g2 <- ggplotGrob(toi_visual)
+  g3 <- ggplotGrob(corsi_visual)
+  g4 <- ggplotGrob(goals_visual)
+  g5 <- ggplotGrob(sh_visual)
+  g6 <- ggplotGrob(st_goals_visual)
+  #g5 <- ggplotGrob(points_visual)
+  #old method - this broke after updating corsi visual to rolling average
+  g <- rbind(g2, g3, g5, g4, g6, size = "first")
+  g$widths <- unit.pmax(g2$widths, g3$widths, g5$widths, g4$widths, g6$widths)
+  grid.newpage()
+  grid.draw(g)
+  
+  return(g)
+  #return(sp_data)
+  #return(goals_for)
+  #return(team_name)
+  #return(st_y_goals_axis)
+  #return(st_goals_visual)
+  #return(st_goals)
+  
+}
+
+team_toi <- function(team, season_year, position, situation) {
+  
+  #kelly_colors <- c('#F2F3F4', '#222222', '#F3C300', '#875692', '#F38400', '#A1CAF1', '#BE0032', '#C2B280', '#848482', '#008856', '#E68FAC', '#0067A5', '#F99379', '#604E97', '#F6A600', '#B3446C', '#DCD300', '#882D17', '#8DB600', '#654522', '#E25822', '#2B3D26')
+  
+  kelly_colors <- c('#222222', '#F3C300', '#875692', '#F38400', '#A1CAF1', '#BE0032', '#C2B280', '#848482', '#008856', '#E68FAC', '#0067A5', '#F99379', '#604E97', '#F6A600', '#B3446C', '#DCD300', '#882D17', '#8DB600', '#654522', '#E25822', '#2B3D26')
+  
+  toi_data <- player_toi_data_master %>%
+    filter(team == shlse_team_name, season_year == season, position == Pos) %>%
+    rename(player = swehockey_name)
+  
+  #set a minimum games played
+  min_gp <- toi_data %>%
+    group_by(player) %>%
+    dplyr::summarise(gp = sum(GP), toi2 = sum(TOI)) %>%
+    filter(gp >= 10) %>%
+    arrange(-toi2)
+  
+  min_gp2 <- toi_data %>%
+    group_by(player) %>%
+    dplyr::summarise(gp = sum(GP), toi2 = sum(TOI)) %>%
+    filter(gp >= 10) %>%
+    arrange(-toi2) %>%
+    select(player)
+  
+  if (situation == 'EV') {
+    toi_data <- toi_data %>%
+      select(player, game_number, ESTOI) %>%
+      rename(TOI = ESTOI)
+    
+    situation_title <- 'Even Strength'
+  }
+  
+  if (situation == 'PP') {
+    toi_data <- toi_data %>%
+      select(player, game_number, PPTOI) %>%
+      rename(TOI = PPTOI)
+    
+    situation_title <- 'Powerplay'
+  }
+  
+  if (situation == 'SH') {
+    toi_data <- toi_data %>%
+      select(player, game_number, SHTOI) %>%
+      rename(TOI = SHTOI)
+    
+    situation_title <- 'Shorthanded'
+  }
+  
+  if (situation == 'All') {
+    toi_data <- toi_data %>%
+      select(player, game_number, TOI) 
+    
+    situation_title <- 'All Situations'
+  }
+  
+  if (position == 'F') {
+    position_title <- 'Forwards'
+  }
+  
+  if (position == 'D') {
+    position_title <- 'Defensemen'
+  }
+  
+  #players <- unique(toi_data$player) %>% sort()
+  #players <- unique(min_gp$player) %>% sort()
+  #players <- unique(min_gp$player) 
+  players <- min_gp2$player
+  
+  n <- length(players)
+  
+  player_toi <- c()
+  for (i in players[1:n]) {
+    
+    game_number <- tibble(c(1:52)) %>% set_names('game_number')
+    
+    temp <- toi_data %>%
+      filter(player == i) %>%
+      mutate(player_game_number = row_number())
+    
+    temp <- temp %>%
+      mutate(TOI_L5 = ifelse(player_game_number >= 5, rollsumr(TOI, 5, fill = NA), NA)) %>%
+      mutate(TOI_avg = round((TOI_L5 / 5), 1))
+    
+    #temp <- left_join(game_number, temp, by = "game_number")
+    #temp <- left_join(temp, game_number, by = "game_number")
+    temp <- merge(game_number, temp, by.x = "game_number", by.y = "game_number", all.x = TRUE)
+    
+    temp$player <- ifelse(is.na(temp$player), i, i)
+    
+    #new 
+    temp <- temp %>%
+      select(player, game_number, TOI) %>%
+      rename(GameNumber = game_number)
+      #rename(TOI = TOI_avg, `Game Number` = game_number) 
+    
+    player_toi <- rbind(player_toi, temp)
+    
+    rm(temp)
+    
+  }
+  
+  #Function for smoothing
+  myfunsmooth <- function(x)
+  {
+    #Model
+    model <- loess(TOI ~ GameNumber, data = x)
+    #Augment model output in a new dataframe
+    y <- broom::augment(model, x)
+    #Merge data
+    z <- merge(x,y[,c("player","GameNumber",".fitted")],
+               by=c("player","GameNumber"),all.x = T)
+    #Return
+    return(z)
+  }
+  
+  #Create list by player
+  list <- split(player_toi,player_toi$player)
+  
+  #Apply function
+  list2 <- lapply(list, myfunsmooth)
+  #Bind all
+  toi_data_smoothed <- do.call(rbind,list2)
+  rownames(toi_data_smoothed) <- NULL
+  
+  
+  toi_visual <- ggplot(toi_data_smoothed, aes(x = GameNumber, y = TOI, group = player, colour = player)) +
+    geom_line(aes(y = .fitted), size = 1) +
+    scale_y_continuous(limits = c(0, 26), expand = c(0, 0)) +
+    
+    scale_color_manual(values = kelly_colors) +
+    
+      theme_few() +
+      theme(text = element_text(family = "Sweden Sans")) +
+
+
+      labs(title = paste(team, season_year, position_title, "|", "Smoothed TOI", sep = ' '),
+           subtitle = paste(situation_title, "(Min. 10 GP)", sep = ' ')) +
+
+      theme(plot.title = element_text(face = "bold")) 
+    
+      #theme(text = element_text(size = 9))
+  
+  
+  # if(max(toi_data$TOI) > 26) {
+  #   
+  #   toi_visual <- toi_visual + 
+  #     scale_y_continuous(limits = c(0, 30), expand = c(0, 0))
+  #   
+  # }
+  
+  if(situation == 'PP') {
+    
+    toi_visual <- toi_visual + 
+      scale_y_continuous(limits = c(0, 5), expand = c(0, 0))
+    
+  }
+  
+  if(situation == 'SH') {
+    
+    toi_visual <- toi_visual + 
+      scale_y_continuous(limits = c(0, 5), expand = c(0, 0))
+    
+  }
+  
+  if(situation == 'EV') {
+    
+    toi_visual <- toi_visual + 
+      scale_y_continuous(limits = c(0, 20), expand = c(0, 0))
+    
+  }
+  
+  
+                                  
+  
+  # toi_visual <- ggplot(df3, aes(x = `Game Number`, y = TOI, group = player, colour = player)) +
+  # toi_visual <- ggplot(player_toi_condensed, aes(x = `Game Number`, y = TOI, group = player, colour = player)) +
+  # toi_visual <- ggplot(player_toi, aes(x = `Game Number`, y = TOI, group = player, colour = player)) +
+  # toi_visual <- ggplot(player_toi, aes(x = game_number, y = TOI_avg, group = player, colour = player)) +
+
+  
+  #return(min_gp2)
+  #return(players)
+  #return(toi_data)
+  #return(player_toi_condensed)
+  #return(player_toi)
+  #return(toi_data_smoothed)
+  return(toi_visual)
   
 }
 
 
-# Run App -----------------------------------------------------------------
+# UI ----------------------------------------------------------------------
+
+bs_theme_new()
+
+bs_theme_add_variables(
+  primary = "#005293"
+)
+
+bs_theme_fonts(
+  base = "sweden_sansregular", code = "sweden_sansregular"
+)
+
+# 
+# remotes::install_github("rstudio/thematic", force = TRUE)
+# library(thematic)
+# 
+# remotes::install_github("rstudio/shiny#2740")
+
+
+#bs_theme_accent_colors(primary = "#005293")
+
+ui <- bootstrapPage(
+  
+  tags$head(includeHTML("google-analytics.html")),
+  
+  tags$head(
+    #includeHTML(includeHTML("google-analytics.html")),
+    tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css"),
+    tags$link(rel = "stylesheet", type = "text/css", href = "stylesheet.css")
+  ),
+  
+  #tags$head(includeHTML("google-analytics.html")),
+  
+  bootstraplib::bootstrap(),
+  
+  #navbarPage("Svengelska Hockey",
+  navbarPage(title = div(img(src='logo.png',style="margin-top: -14px; padding-right:10px", height = 50.4, width = 225)),
+             #theme = "journal",
+             windowTitle="Svengelska Hockey",
+             
+             #;padding-bottom:10px
+    
+    #App Home
+    tabPanel("Home",
+             h1("Svengelska Hockey"),
+             #img(src = "logo.png", height = 166, width = 400),
+             p("Miscellaneous data on Swedish hockey. Currently there are two main sections to this site:"),
+             tags$ul(
+               #tags$li(tags$b("Player & Team Statistics"), " - something"),
+               tags$li(tags$em("Player & Team Statistics"), "- here you'll find a variety of traditional and advanced stats broken out into several game situations. 
+                       You can isolate performance to specific manpower situations (5v5, 3v3, Empty Net, etc.), split assists into primary and secondary, see percentage and rate stats, and other things you can't easily find elsewhere."),
+               br(),
+               tags$li(tags$em("Stats Visualizations"), "- these are meant to be appealing ways to represent a player or team's season over time. The player cards, for example,
+                       show a game-by-game look at performance in a variety of areas - ice time, scoring, shot differential, and on-ice goals for and against.")),
+             
+             p("I'm planning to add lots more going forward - more stats, more visualizations, more leagues - this is just a starting point."),
+             
+             h3("Data Sources"),
+             p("All data on this site originially comes from:"),
+              tags$ul(
+                tags$li("SHL Official League Website - ", a(target = "_blank", "shl.se", href = "https://shl.se")),
+                tags$li("Swedish Ice Hockey Association - ", a(target = "_blank", "stats.swehockey.se", href = "https://stats.swehockey.se"))
+              ),
+             hr(),
+             p("You can find me on Twitter at ", a(target = "_blank", "@zellenthal_swe",
+                                                   href = "https://twitter.com/zellenthal_swe"))
+    ),
+    
+    navbarMenu("Statistics",
+    tabPanel("SHL - Player Stats",
+             
+             fluidPage(
+               titlePanel("SHL - Player Stats"),
+               br(),
+               
+               fluidRow(column(2, selectInput("stats_situation", "Game Situation", choices = c("All Sits", "EV", "PP", "SH", "5v5", "4v4", "3v3", "5v4", "5v3","Empty Net", "PS/SO"), selected = "EV")),
+             
+                        column(2, selectInput("stats_team", "Team", choices = c("All", sort(unique(as.character(EV$Team)))), selected = "All")),
+               
+                        column(2, selectInput("stats_pos", "Position", choices = c("All", "F", "D"), selected = "All"))),
+             
+               fluidRow(#column(2, selectInput("stats_player", "Player", choices = c("All", sort(unique(as.character(EV$Player))))), selected = "All", multiple = FALSE),
+                        
+                        #column(2, selectInput("stats_player2", "Player2", choices = c("All", sort(unique(as.character(EV$Player)))), selected = "All", multiple = TRUE, selectize = TRUE)),
+                      
+                        column(2, selectInput("stats_season", "Season", choices = c("All", "17/18", "18/19", "19/20"), selected = "19/20")),
+                 
+                        column(2, selectizeInput("stats_player2", "Player", choices = sort(unique(as.character(EV$Player))), multiple = TRUE))),
+                        
+                        
+                      
+                        #column(1, numericInput("stats_minGP", "Min. GP", value = 10))),
+               
+                        submitButton("Submit"),
+                        #actionButton("stats_submit", "Submit"),
+               
+               
+                        #column(2, actionButton("submit"))),
+                        
+                        #submitButton("Submit")),
+               
+               hr(),
+               
+             
+             #Stats Table
+             fluidRow(DT::dataTableOutput("stats_table")),
+             
+             #Download button
+             downloadButton("stats_download"),
+             br(),
+             br(),
+             
+             )
+             ),
+    
+    tabPanel("SHL - Team Stats",
+             fluidPage(
+                titlePanel("SHL - Team Stats"),
+                br(),
+                
+                fluidRow(
+                  column(2, selectInput("stats_situation_team", "Game Situation", choices = c("EV ", "PP ", "SH ", "5v5 "), selected = "EV ")),
+                  column(2, selectInput("stats_team_team", "Team", choices = c("All", sort(unique(as.character(`EV `$Team)))), selected = "All")),
+                  column(2, selectInput("stats_season_team", "Season", choices = c("All", "17/18", "18/19", "19/20"), selected = "19/20"))
+                ),
+                
+                submitButton("Submit"),
+                hr(),
+                
+                #Team Stats Table
+                fluidRow(DT::dataTableOutput("stats_table_team")),
+                
+                #Download button
+                downloadButton("stats_download_team"),
+                br(),
+                br(),
+                
+             )
+    ),
+      
+    
+    tabPanel("HA - Player Stats (Coming Soon)",
+             fluidPage(
+               titlePanel("HockeyAllsvenskan - Player Stats"),
+               p("Coming Soon"),
+               p("Here's a picture of Marcus Sörensen instead:"),
+               img(src = "sorensen2.png", height = 417.5, width = 600),
+               
+             )),
+    
+    tabPanel("HA - Team Stats (Coming Soon)",
+             fluidPage(
+               titlePanel("HockeyAllsvenskan - Team Stats"),
+               p("Coming Soon"),
+               p("Here's a picture of Marcus Sörensen instead:"),
+               img(src = "sorensen_photo1.png", height = 380, width = 676),
+             ))
+    
+    ),
+    
+    navbarMenu("Visualizations",
+               tabPanel("Player Cards",
+                        fluidPage(
+                          titlePanel("SHL Game-by-Game Player Cards"),
+                          hr(),
+                          
+                          sidebarLayout(sidebarPanel(selectInput("card_player", "Player", choices = as.list(player_names_master[1:length(player_names_master)]),
+                                                                 selected = "Nils Lundkvist", width = "225px"),
+                                                     
+                                                     selectInput("card_season", "Season", choices = c('17/18', '18/19', '19/20'),
+                                                                 selected = '19/20', width = "225px"),
+                                                     
+                                                     
+                                                     submitButton("Submit")),
+                                        
+                            
+                          mainPanel(plotOutput("player_card")),
+                          
+                        ),
+                        
+                        br(), 
+                        br()
+                        )
+                        
+                        ),
+               
+               tabPanel("Player Usage",
+                        fluidPage(
+                          titlePanel("Player Usage - Smoothed TOI"),
+                          hr(),
+                          
+                          sidebarLayout(sidebarPanel(selectInput("toi_team", "Team", choices = sort(unique(as.character(EV$Team))),
+                                                                 selected = "Rögle", width = "225px"),
+                                                     
+                                                     selectInput("toi_season", "Season", choices = c("17/18", "18/19", "19/20"), selected = "19/20", width = "225px"),
+                                                     
+                                                     selectInput("toi_pos", "Position", choices = c("F", "D"), selected = "D", width = "225px"),
+                                                     
+                                                     selectInput("toi_sit", "Situation", choices = c("All", "EV", "PP", "SH"), selected = "All", width = "225px"),
+                                                     
+                                                     #selectInput("toi_season", "Season", choices = c("17/18", "18/19", "19/20"), selected = "19/20", width = "225px"),
+                                                     
+                                                     submitButton("Submit")),
+                                                     
+                                          mainPanel(plotOutput("toi_smoothed")),
+                                                     
+                                                     )),
+                        
+                        br(),
+                        br()
+                          
+                        ),
+               
+               tabPanel("Team Cards",
+                        fluidPage(
+                          titlePanel("SHL Game-by-Game Team Cards"),
+                          hr(),
+                          
+                          sidebarLayout(sidebarPanel(selectInput("card_team", "Team", choices = as.list(swehockey_team_names[1:length(swehockey_team_names)]),
+                                                                 selected = "Luleå HF", width = "225px"),
+                                                     
+                                                     selectInput("card_season_team", "Season", choices = c('17/18', '18/19', '19/20'),
+                                                                 selected = '19/20', width = "225px"),
+                                                     
+                                                     
+                                                     submitButton("Submit")),
+                                        
+                                        
+                                        mainPanel(plotOutput("team_card")),
+                              
+                                        
+                          ),
+                          
+                          br(), br()
+                          )
+                        )
+                        
+               
+               ),
+    
+    tabPanel("Blogs",
+             fluidPage(
+               h2("Random Things I've Written"),
+               p("About once or twice a year I get the urge to write something related to Swedish hockey. Usually it's very random. Here are some of those blogs:"),
+               
+               br(),
+               
+               h5(a(target = "_blank", "The Charm of Swedish Hockey",
+                    href = "https://medium.com/@zellenthal/the-charm-of-swedish-hockey-669cfc4fe87c")),
+               p("Why I enjoy Swedish hockey so much, and why I think it offers a more pure fan experience than the NHL."),
+               br(),
+               
+               h5(a(target = "_blank", "Ligaen Overload",
+                    href = "https://medium.com/@zellenthal/ligaen-overload-4ac66cd0170c")),
+               p("An incredibly rough attempt at creating league translation factors to determine if the Norwegian GET-Ligaen or the Danish Metal-Ligaen is better."),
+               br(),
+               
+               h5(a(target = "_blank", "2018/19 SHL Watchability Rankings",
+                    href = "https://medium.com/@zellenthal/2018-19-shl-watchability-rankings-3f4c62701822")),
+               p("Built a model to rank the SHL teams in order of watchability based on several on-ice and off-ice critera. Maybe I'll revisit this on this site some time soon."),
+               br(),
+               
+               h5(a(target = "_blank", "My 5 Seasons as  Djurgården Fan, Ranked",
+                    href = "https://medium.com/@zellenthal/my-5-seasons-as-a-djurg%C3%A5rden-fan-ranked-d0ff45c0e199")),
+               p("I'm barely a Djurgården fan anymore, but my love for Swedish hockey started with them. This is really more about becoming a fan than the actual ranking.")
+               
+             )
+             )
+    
+  ) #navbarPage
+  
+) #bootstrapPage
+
+
+# Server ------------------------------------------------------------------
+
+server <- function(input, output, session) {
+  
+  #Statistics table output
+  output$stats_table <- DT::renderDataTable(DT::datatable({
+    
+    stats_data <- get(input$stats_situation)
+    
+    if (input$stats_team != "All") {
+      stats_data <- stats_data[stats_data$Team == input$stats_team, ]
+    }
+    
+    if (input$stats_pos != "All") {
+      stats_data <- stats_data[stats_data$Pos == input$stats_pos,]
+    }
+    
+    if (input$stats_season != "All") {
+      stats_data <- stats_data[stats_data$Season == input$stats_season,]
+    }
+    
+    # if (input$stats_minGP != 0) {
+    #   stats_data <- stats_data[stats_data$GP >= input$stats_minGP,]
+    # }
+    
+    # if (input$stats_player != "All") {
+    #   stats_data <- stats_data[stats_data$Player == input$stats_player, ]
+    # }
+    
+    if (isTRUE(input$stats_player2 != "")) {
+      stats_data <- stats_data[stats_data$Player %in% input$stats_player2,]
+    }
+    
+    # if (isTRUE(input$stats_player2 != "")) {
+    #   stats_data <- stats_data[stats_data$Player == input$stats_player2[1] | stats_data$Player == input$stats_player2[2], ]
+    # }
+    
+    output$stats_download <- downloadHandler(
+      filename = function() {
+        paste0("player_stats", ".csv")
+      },
+      content = function(file) {
+        write_excel_csv(stats_data, file)
+      }
+    )
+    
+    rownames(stats_data) <- NULL
+    
+    stats_data
+    
+  },
+  
+  #extensions = c('FixedHeader', 'FixedColumns'),
+  extensions = 'FixedHeader',
+  
+  options = list(
+    #change the pagination options
+    pageLength = 25,
+    lengthMenu = c(25, 50, 100, 500),
+    
+    #center character columns
+    columnDefs = list(list(className = 'dt-center', targets = c(2,4:5))),
+    
+    #order the table by GP - applies to all tables
+    order = list(list(1, 'asc')),
+    
+    #removes the search bar! everything but 's'
+    dom = 'ltipr',
+    
+    fixedHeader = TRUE,
+    
+    #freezes the first 5 columns
+    #scrollX = TRUE,
+    #autoWidth = TRUE,
+    #fixedColumns = list(leftColumns = 2),
+    
+    #makes the column blue - the swedish blue in this case
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#005293', 'color': '#fff'});",
+      "}")
+    
+  ),
+  
+  #makes the table look a lot nicer
+  class = 'row-border stripe compact hover nowrap',
+  
+  ))
+  
+  #Team Stats Output
+  output$stats_table_team <- DT::renderDataTable(DT::datatable({
+    
+    team_stats_data <- get(input$stats_situation_team)
+    
+    if (input$stats_team_team != "All") {
+      team_stats_data <- team_stats_data[team_stats_data$Team == input$stats_team_team, ]
+    }
+    
+    if (input$stats_season_team != "All") {
+      team_stats_data <- team_stats_data[team_stats_data$Season == input$stats_season_team, ]
+    }
+    
+    output$stats_download_team <- downloadHandler(
+      filename = function() {
+        paste0("team_stats", ".csv")
+      },
+      content = function(file) {
+        write_excel_csv(team_stats_data, file)
+      }
+    )
+  
+    rownames(team_stats_data) <- NULL
+    
+    team_stats_data
+    
+  },
+  
+  #extensions = c('FixedHeader', 'FixedColumns'),
+  extensions = 'FixedHeader',
+  
+  options = list(
+    #change the pagination options
+    pageLength = 25,
+    lengthMenu = c(25, 50, 100),
+    
+    #center character columns
+    #columnDefs = list(list(className = 'dt-center', targets = c(2,4:5))),
+    
+    #order the table by GP - applies to all tables
+    order = list(list(1, 'asc')),
+    
+    #removes the search bar! everything but 's'
+    dom = 'ltipr',
+    
+    fixedHeader = TRUE,
+    
+    #freezes the first 5 columns
+    #scrollX = TRUE,
+    #autoWidth = TRUE,
+    #fixedColumns = list(leftColumns = 2),
+    
+    #makes the column blue - the swedish blue in this case
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#005293', 'color': '#fff'});",
+      "}")
+    
+  ),
+  
+  #makes the table look a lot nicer
+  class = 'row-border stripe compact hover nowrap',
+  
+  ))
+  
+  #Player Card output
+  output$player_card <- renderPlot({
+    
+    player_card(input$card_player, input$card_season)
+    
+  },
+  
+  height = 770, width = 740,
+  res = 96
+  
+  )
+  
+  #TOI Smoothed output
+  output$toi_smoothed <- renderPlot({
+    
+    team_toi(input$toi_team, input$toi_season, input$toi_pos, input$toi_sit)
+    
+  },
+  
+  height = 770, width = 740,
+  res = 96
+  
+  )
+  
+  #Player Card output
+  output$team_card <- renderPlot({
+    
+    team_card(input$card_team, input$card_season_team)
+    
+  },
+  
+  height = 960, width = 740,
+  res = 96
+  
+  )
+  
+  
+}
+
 
 shinyApp(ui = ui, server = server)
 
 
-# Messing Around ----------------------------------------------------------
-
-
-# Old ---------------------------------------------------------------------
-
-
-
-# player_card <- function(player_name) {
-#   
-#   #TOI
-#   
-#   teams <- player_toi_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     select(swehockey_name, shlse_team_name, game_number)
-#   teams <- teams[order(teams$game_number),]
-#   teams_list <- unique(teams$shlse_team_name)
-#   
-#   #create one-off table to expand y axis as needed
-#   #will use this later to expand the y-axis if needed
-#   y_toi_axis <- player_toi_data_1920 %>%
-#     filter(swehockey_name == player_name)
-#   
-#   #pull relevant data from master
-#   table_toi <- player_toi_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     select(game_number, ESTOI, PPTOI, SHTOI) %>%
-#     #rename it for what I want to display in the legend
-#     rename(ES = ESTOI, PP = PPTOI, SH = SHTOI)
-#   
-#   #melt so can plot a stacked column (only way to create stacked column?)
-#   table_toi2 <- melt(table_toi, id.var="game_number") %>%
-#     rename(GameNumber = game_number, Situation = variable, TOI = value)
-#   
-#   #create the order of those stacked components
-#   #don't fully understand this one - needed to create the order I want the stacking in
-#   levels(table_toi2$Situation)
-#   table_toi2$Situation <- factor(table_toi2$Situation, levels = rev(levels(table_toi2$Situation)))
-#   
-#   #ggplot the toi visual
-#   toi_visual <- ggplot(table_toi2[order(table_toi2$Situation),], 
-#                        aes(x = GameNumber, y = TOI, fill = Situation)) +
-#     geom_bar(stat = "identity") +
-#     
-#     #creating the title for the overall plot, plus the TOI subheader data
-#     labs(title = paste(player_name, " 19/20 Season | ", y_toi_axis$shlse_team_name, " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-#          subtitle = paste("TOI by Game Situation \n",
-#                           round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-#                           round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-#                           round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = '')) +
-#    
-#     theme_few() +
-#     #use the font I loaded in specifically for this visual
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     theme(plot.title = element_text(face = "bold")) +
-#     theme(axis.title.x = element_blank()) +
-#     scale_fill_manual(values=c("#FF7F7F", "#FFD17F", "#7F7FFF")) +
-#     #x axis spans entire 52 game season
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#     #default y axis goes from 0 to 20 minutes
-#     scale_y_continuous(limits = c(0, 20), expand = c(0, 0))
-#   
-#   #but for players with games > 20 minutes, this is where the y axis table comes in
-#   if(max(y_toi_axis$TOI) > 20){
-#     toi_visual <- toi_visual + scale_y_continuous(limits=c(0, max(y_toi_axis$TOI) + 1),
-#                                                   expand = c(0, 0))
-#   }
+# player_profile <- function(player_name) {
 # 
-#   if(length(teams_list) == 2){
-#     toi_visual <- toi_visual + labs(title = paste(player_name, " 19/20 Season | ", teams_list[1], ", ", teams_list[2], " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-#                                     subtitle = paste("TOI by Game Situation \n",
-#                                                      round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-#                                                      round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-#                                                      round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = ''))
-#   }
+#   stats_5v5 <- `5v5` %>%
+#     dplyr::filter(Player == player_name)
 #   
-#   if(length(teams_list) == 3){
-#     toi_visual <- toi_visual + labs(title = paste(player_name, " 19/20 Season | ", teams_list[1], ", ", teams_list[2], ", ", teams_list[3], " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-#                                     subtitle = paste("TOI by Game Situation \n",
-#                                                      round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-#                                                      round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-#                                                      round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = ''))
-#   }
+#   stats_EV <- EV %>%
+#     dplyr::filter(Player == player_name)
 #   
+#   stats_PP <- PP %>%
+#     dplyr::filter(Player == player_name)
 #   
-#   #Player point production
-#   #all same as above
-#   y_points_axis <- player_points_data_1920 %>%
-#     filter(swehockey_name == player_name)
+#   stats_SH <- SH %>%
+#     dplyr::filter(Player == player_name)
 #   
-#   table_points <- player_points_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     select(game_number, G, A1, A2)
-#   
-#   table_points_2 <- melt(table_points, id.var="game_number") %>%
-#     rename(GameNumber = game_number, PointType = variable, Points = value)
-#   
-#   levels(table_points_2$PointType)
-#   table_points_2$PointType <- factor(table_points_2$PointType, levels = rev(levels(table_points_2$PointType)))
-#   
-#   points_visual <- ggplot(table_points_2[order(table_points_2$PointType),], 
-#                           aes(x = GameNumber, y = Points, fill = PointType)) +
-#     geom_bar(stat = "identity") +
-#     labs(subtitle = paste("Point Production \n",
-#                           sum(table_points$G), ' G  -  ',
-#                           sum(table_points$A1), ' A1  -  ',
-#                           sum(table_points$A2), ' A2  (',
-#                           
-#                           round((sum(y_points_axis$TP) / sum(y_toi_axis$TOI)) * 60, 2),
-#                           
-#                           ' P/60)',
-#                           
-#                           sep = '')) +
-#     theme_few() +
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     theme(axis.title.x = element_blank()) +
-#     scale_fill_manual(values=c("#CCE4CC", "#B2B2FF", "#7F7FFF")) +
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) + 
-#     scale_y_continuous(limits = c(0, 3), expand = c(0, 0))
-#   
-#   
-#   
-#   
-#   if(max(y_points_axis$TP) > 3){
-#     points_visual <- points_visual + scale_y_continuous(limits=c(0, max(y_points_axis$TP)),
-#                                                         expand = c(0, 0))
-#   }
-#   
-#   #corsi (158 - 207)
-#   y_corsi_axis <- player_corsi_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     #select(gameNumber, CF, CA) %>%
-#     mutate(CA2 = CA * -1) %>%
-#     select(-c(CA)) %>%
-#     rename(CA = CA2) %>%
-#     mutate(CA_abs = abs(CA))
-# 
-#   #storing values to calculate stats for subheader (CF%, relative CF%)
-#   player_corsi <- round((sum(y_corsi_axis$CF) / (sum(y_corsi_axis$CF) + sum(y_corsi_axis$CA_abs)) *100), 1)
-#   player_off_corsi <- round((sum(y_corsi_axis$CF_off) / (sum(y_corsi_axis$CF_off) + sum(y_corsi_axis$CA_off)) *100), 1)
-#   CF_rel <- player_corsi - player_off_corsi
-# 
-#   table_corsi <- player_corsi_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     select(game_number.x, CF, CA) %>%
-#     mutate(CA2 = CA * -1) %>%
-#     select(-c(CA)) %>%
-#     rename(CA = CA2)
-# 
-#   table_corsi_2 <- melt(table_corsi, id.var="game_number.x") %>%
-#     rename(GameNumber = game_number.x, ShotType = variable, Shots = value)
-# 
-#   levels(table_corsi_2$Type)
-#   table_corsi_2$ShotType <- factor(table_corsi_2$ShotType, levels = rev(levels(table_corsi_2$ShotType)))
-# 
-#   corsi_visual <- ggplot(table_corsi_2[order(table_corsi_2$ShotType),],
-#                          aes(x = GameNumber, y = Shots, fill = ShotType)) +
-#     geom_bar(stat = "identity") +
-#     labs(subtitle = paste("Corsi For and Against \n",
-#                           round((sum(table_corsi$CF) / (sum(table_corsi$CF) + sum(y_corsi_axis$CA_abs)) *100), 1),
-#                           ' CF%',
-# 
-#                           ' (', round(CF_rel, 1),' rel)', sep = '')) +
-#     theme_few() +
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     theme(axis.title.x = element_blank()) +
-#     #flip the order of the legend so CF is on top and CA is on the bottom
-#     guides(fill = guide_legend(reverse = TRUE)) +
-#     #red, black
-#     scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#     scale_y_continuous(limits = c(-20, 20), expand = c(0, 0))
-# 
-# 
-#   if(max(y_corsi_axis$CF, y_corsi_axis$CA_abs) > 20){
-#     corsi_visual <- corsi_visual + scale_y_continuous(limits=c(max(y_corsi_axis$CF, y_corsi_axis$CA_abs) * -1, max(y_corsi_axis$CF,y_corsi_axis$CA_abs)),
-#                                                       expand = c(0, 0))
-#   }
-# 
-#   #Shot Rates
-#   # game_number <- tibble(c(1:52)) %>% set_names('number')
-#   # 
-#   # shot_data <-
-#   #   left_join(player_corsi_data_1920, player_toi_data_1920, by = "name_date") %>%
-#   #   filter(swehockey_name.x == player_name) %>%
-#   #   select(game_number.x, CF, CA, ESTOI) %>%
-#   #   mutate(player_game_number = row_number()) %>%
-#   #   
-#   #   mutate(CFL5 = ifelse(player_game_number >= 5,
-#   #                        rollsumr(CF, 5, fill = NA),
-#   #                        0)) %>%
-#   #   mutate(CAL5 = ifelse(player_game_number >= 5,
-#   #                        rollsumr(CA, 5, fill = NA),
-#   #                        0)) %>%
-#   #   mutate(ESTOIL5 = ifelse(player_game_number >= 5,
-#   #                           rollsumr(ESTOI, 5, fill = NA),
-#   #                           0)) %>%
-#   #   
-#   #   mutate(CF60 = round((CFL5 / ESTOIL5) * 60, 1)) %>%
-#   #   mutate(CA60 = round((CAL5 / ESTOIL5) * 60, 1))
-#   # 
-#   # 
-#   # shot_data %>%
-#   #   select(game_number.x, CF60, CA60) -> shot_data_condensed
-#   # 
-#   # #shot_data_condensed[is.na(shot_data_condensed)] <- 0
-#   # 
-#   # left_join(game_number, shot_data_condensed, by = c("number" = "game_number.x")) -> shot_data_condensed
-#   # 
-#   # melt_test <- reshape2::melt(shot_data_condensed, id.var = "number") %>%
-#   #   rename(ShotType = variable, Shots = value)
-#   # 
-#   # shot_rate_visual <- ggplot(shot_data_condensed, aes(x = number, y = `Shot Rates`)) +
-#   #   geom_line(aes(y = CF60), color = "#7F7F7F", size = 1) +
-#   #   geom_line(aes(y = CA60), color = "#FF7F7E", size = 1) +
-#   #   theme_few() +
-#   #   theme(text = element_text(family = "Sweden Sans")) +
-#   #   theme(axis.title.x = element_blank()) +
-#   #   scale_x_continuous(limits = c(0, 53), expand = c(0, 0)) + 
-#   #   scale_y_continuous(limits = c(0, 80), expand = c(0, 0)) +
-#   #   labs(subtitle = paste("Shot Rates For and Against \n",
-#   #                     round((sum(table_corsi$CF) / (sum(table_corsi$CF) + sum(y_corsi_axis$CA_abs)) *100), 1),
-#   #                           ' CF%',
-#   # 
-#   #                           ' (', round(CF_rel, 1),' rel)', sep = ''))
-#   
-#   #Goals
-#   game_numbers <- tibble(c(1:52)) %>%
-#     set_names("game_number")
-#   
-#   #for people on for no goals
-#   empty_goals <- tibble(game_number = c(1:52), GF = 0, GA = 0)
-#   
-#   empty_goals_2 <- melt(empty_goals, id.var = "game_number") %>%
-#     rename(GameNumber = game_number, GoalType = variable, Goals = value)
-#   
-#   levels(empty_goals_2$GoalType)
-#   empty_goals_2$GoalType <- factor(empty_goals_2$GoalType, levels = rev(levels(empty_goals_2$GoalType)))
-#   #end of people on for no goals
-#   
-#   GF_data <- box_score_data_1920 %>%
-#     subset(grepl(player_name, GF_names)) %>%
-#     filter(game_situation == '5v5') %>%
-#     select(GF_names, gf_team_game_number) %>%
-#     mutate(count = 1) %>%
-#     select(-c(GF_names)) %>%
-#     group_by(gf_team_game_number) %>%
-#     summarise(GF = sum(count))
-#   
-#   GA_data <- box_score_data_1920 %>%
-#     subset(grepl(player_name, GA_names)) %>%
-#     filter(game_situation == '5v5') %>%
-#     select(GA_names, ga_team_game_number) %>%
-#     mutate(count = 1) %>%
-#     select(-c(GA_names)) %>%
-#     group_by(ga_team_game_number) %>%
-#     summarise(GA = sum(count))
-#   
-#   y_goals_axis <- merge(game_numbers, GF_data, by.x = "game_number",
-#                         by.y = "gf_team_game_number", all.x = TRUE)
-#   
-#   y_goals_axis <- merge(y_goals_axis, GA_data, by.x = "game_number",
-#                         by.y = "ga_team_game_number", all.x = TRUE)
-#   
-#   y_goals_axis <- y_goals_axis %>%
-#     mutate(GA2 = GA * -1) %>%
-#     select(-c(GA)) %>%
-#     rename(GA = GA2) %>%
-#     mutate(GA_abs = abs(GA))
-#   
-#   table_goals <- y_goals_axis %>%
-#     select(-c(GA_abs))
-#   
-#   table_goals_2 <- melt(table_goals, id.var = "game_number") %>%
-#     rename(GameNumber = game_number, GoalType = variable, Goals = value)
-#   
-#   levels(table_goals_2$GoalType)
-#   table_goals_2$GoalType <- factor(table_goals_2$GoalType, levels = rev(levels(table_goals_2$GoalType)))
-#   
-#   table_goals[is.na(table_goals)] <- 0
-#   y_goals_axis[is.na(y_goals_axis)] <- 0
-#     
-#   goals_visual <- ggplot(table_goals_2[order(table_goals_2$GoalType),],
-#                          aes(x = GameNumber, y = Goals, fill = GoalType)) +
-#     geom_bar(stat = "identity") +
-#     labs(subtitle = paste('5v5 Goals For and Against \n',
-#                           sum(table_goals$GF), ' GF  -  ',
-#                           sum(y_goals_axis$GA_abs), ' GA ',
-#                           #round(sum(table_goals$GF)/(sum(table_goals$GF) +  sum(y_goals_axis$GA_abs)), 2), ' GF% ',
-#                           sep = '')) +
-#     labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_DIF'), sep = '') +
-#     theme_few() +
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     guides(fill = guide_legend(reverse = TRUE)) +
-#     #red, black
-#     scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#     scale_y_continuous(limits = c(-3, 3), expand = c(0, 0))
-# 
-# # if the axis needs to be expanded
-#   if(max(y_goals_axis$GF, y_goals_axis$GA_abs) > 3){
-#     goals_visual <- goals_visual + scale_y_continuous(limits=c(max(y_goals_axis$GF, y_goals_axis$GA_abs) * -1, max(y_goals_axis$GF,y_goals_axis$GA_abs)),
-#                                                       expand = c(0, 0))
-#     
-#   }
-#   
-# #if the player hasn't been on for a goal
-# if(sum(y_goals_axis$GF) + sum(y_goals_axis$GA_abs) == 0) {
-# 
-#   goals_visual <- ggplot(empty_goals_2[order(empty_goals_2$GoalType),],
-#                          aes(x = GameNumber, y = Goals, fill = GoalType)) +
-#     geom_bar(stat = "identity") +
-#     labs(subtitle = paste('5v5 Goals For and Against \n',
-#                           0, ' GF  -  ',
-#                           0, ' GA ',
-#                           #round(sum(table_goals$GF)/(sum(table_goals$GF) +  sum(y_goals_axis$GA_abs)), 2), ' GF% ',
-#                           sep = '')) +
-#     labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_DIF'), sep = '') +
-#     theme_few() +
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     guides(fill = guide_legend(reverse = TRUE)) +
-#     #red, black
-#     scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#     scale_y_continuous(limits = c(-3, 3), expand = c(0, 0))
 # 
 # }
-#   
-#   
-#   #using the ggpubr package so that I can align all the ggplots on one visual
-#   #and so all the x axes align
-#   g2 <- ggplotGrob(toi_visual)
-#   g3 <- ggplotGrob(corsi_visual)
-#   #g3 <- ggplotGrob(shot_rate_visual)
-#   g4 <- ggplotGrob(goals_visual)
-#   g5 <- ggplotGrob(points_visual)
-#   g <- rbind(g2, g5, g3, g4, size = "first")
-#   g$widths <- unit.pmax(g2$widths, g5$widths, g3$widths, g4$widths)
-#   grid.newpage()
-#   grid.draw(g)
-#   
-#   #aligned <- cowplot::align_plots(plotlist = c(g2, g5, g3, g4), align = "v")
-#   
-#   #aligned = cowplot::align_plots(plotlist = df$plots, align = 'v')
-#   
-#   
-#   return(g)
-#   #return(aligned)
-#   
-# }
-
-
-
-# player_card2 <- function(player_name) {
-#   
-#   
-#   #for plot title - identify which teams a player played for
-#   #ends up being plugged into the TOI visual
-#   teams <- player_toi_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     select(swehockey_name, shlse_team_name, game_number)
-#   
-#   teams <- teams[order(teams$game_number),]
-#   teams_list <- unique(teams$shlse_team_name)
-#   
-#   #TOI
-#   #create one-off table to expand y axis as needed - will use this later
-#   y_toi_axis <- player_toi_data_1920 %>%
-#     filter(swehockey_name == player_name)
-#   
-#   #pull relevant data from master
-#   table_toi <- player_toi_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     select(game_number, ESTOI, PPTOI, SHTOI) %>%
-#     #rename it for what displays in the legend
-#     rename(ES = ESTOI, PP = PPTOI, SH = SHTOI)
-#   
-#   #melt so can plot a stacked column (only way to create stacked column?)
-#   table_toi2 <- melt(table_toi, id.var="game_number") %>%
-#     rename(GameNumber = game_number, Situation = variable, TOI = value)
-#   
-#   #create the order of those stacked components - don't fully understand why this is necessary
-#   levels(table_toi2$Situation)
-#   table_toi2$Situation <- factor(table_toi2$Situation, levels = rev(levels(table_toi2$Situation)))
-#   
-#   #ggplot for the toi visual
-#   toi_visual <- ggplot(table_toi2[order(table_toi2$Situation),], 
-#                        aes(x = GameNumber, y = TOI, fill = Situation)) +
-#     geom_bar(stat = "identity") +
-#     
-#     #creating the title for the overall plot, plus the TOI subheader data
-#     labs(title = paste(player_name, " 19/20 Season | ", y_toi_axis$shlse_team_name, " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-#          subtitle = paste("TOI by Game Situation \n",
-#                           round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-#                           round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-#                           round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = '')) +
-#     
-#     theme_few() +
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     theme(plot.title = element_text(face = "bold")) +
-#     theme(axis.title.x = element_blank()) +
-#     scale_fill_manual(values=c("#FF7F7F", "#FFD17F", "#7F7FFF")) +
-#     #x axis spans entire 52 game season
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#     #default y axis goes from 0 to 20 minutes
-#     scale_y_continuous(limits = c(0, 20), expand = c(0, 0))
-#   
-#   #but for players with games > 20 minutes, this is where the y axis table comes in
-#   if(max(y_toi_axis$TOI) > 20){
-#     toi_visual <- toi_visual + scale_y_continuous(limits=c(0, max(y_toi_axis$TOI) + 1),
-#                                                   expand = c(0, 0))
-#   }
-#   
-#   if(length(teams_list) == 2){
-#     toi_visual <- toi_visual + labs(title = paste(player_name, " 19/20 Season | ", teams_list[1], ", ", teams_list[2], " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-#                                     subtitle = paste("TOI by Game Situation \n",
-#                                                      round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-#                                                      round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-#                                                      round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = ''))
-#   }
-#   
-#   if(length(teams_list) == 3){
-#     toi_visual <- toi_visual + labs(title = paste(player_name, " 19/20 Season | ", teams_list[1], ", ", teams_list[2], ", ", teams_list[3], " | ", NROW(table_toi$ES), ' GP',  sep = ''),
-#                                     subtitle = paste("TOI by Game Situation \n",
-#                                                      round(sum(table_toi$ES)/NROW(table_toi$ES), 1), ' ES  -  ',
-#                                                      round(sum(table_toi$PP)/NROW(table_toi$ES), 1), ' PP  -  ',
-#                                                      round(sum(table_toi$SH)/NROW(table_toi$ES), 1), ' SH', sep = ''))
-#   }
-#   
-#   
-#   #Points
-#   y_points_axis <- player_points_data_1920 %>%
-#     filter(swehockey_name == player_name)
-#   
-#   table_points <- player_points_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     select(game_number, G, A1, A2)
-#   
-#   table_points_2 <- melt(table_points, id.var="game_number") %>%
-#     rename(GameNumber = game_number, PointType = variable, Points = value)
-#   
-#   levels(table_points_2$PointType)
-#   table_points_2$PointType <- factor(table_points_2$PointType, levels = rev(levels(table_points_2$PointType)))
-#   
-#   points_visual <- ggplot(table_points_2[order(table_points_2$PointType),], 
-#                           aes(x = GameNumber, y = Points, fill = PointType)) +
-#     geom_bar(stat = "identity") +
-#     
-#     labs(subtitle = paste("Point Production \n",
-#                           sum(table_points$G), ' G  -  ',
-#                           sum(table_points$A1), ' A1  -  ',
-#                           sum(table_points$A2), ' A2  (',
-#                           
-#                           round((sum(y_points_axis$TP) / sum(y_toi_axis$TOI)) * 60, 2),
-#                           
-#                           ' P/60)',
-#                           
-#                           sep = '')) +
-#     theme_few() +
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     theme(axis.title.x = element_blank()) +
-#     scale_fill_manual(values=c("#CCE4CC", "#B2B2FF", "#7F7FFF")) +
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) + 
-#     scale_y_continuous(limits = c(0, 3), expand = c(0, 0))
-#   
-#   if(max(y_points_axis$TP) > 3){
-#     points_visual <- points_visual + scale_y_continuous(limits=c(0, max(y_points_axis$TP)),
-#                                                         expand = c(0, 0))
-#   }
-#   
-#   #Corsi
-#   y_corsi_axis <- player_corsi_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     #select(gameNumber, CF, CA) %>%
-#     mutate(CA2 = CA * -1) %>%
-#     select(-c(CA)) %>%
-#     rename(CA = CA2) %>%
-#     mutate(CA_abs = abs(CA))
-#   
-#   #storing values to calculate stats for subheader (CF%, relative CF%)
-#   player_corsi <- round((sum(y_corsi_axis$CF) / (sum(y_corsi_axis$CF) + sum(y_corsi_axis$CA_abs)) *100), 1)
-#   player_off_corsi <- round((sum(y_corsi_axis$CF_off) / (sum(y_corsi_axis$CF_off) + sum(y_corsi_axis$CA_off)) *100), 1)
-#   CF_rel <- player_corsi - player_off_corsi
-#   
-#   table_corsi <- player_corsi_data_1920 %>%
-#     filter(swehockey_name == player_name) %>%
-#     select(game_number.x, CF, CA) %>%
-#     mutate(CA2 = CA * -1) %>%
-#     select(-c(CA)) %>%
-#     rename(CA = CA2)
-#   
-#   game_number <- tibble(c(1:52)) %>% set_names('number')
-#   
-#   shot_data <- 
-#     left_join(player_corsi_data_1920, player_toi_data_1920, by = "name_date") %>%
-#     filter(swehockey_name.x == player_name) %>%
-#     select(game_number.x, CF, CA, ESTOI) %>%
-#     mutate(player_game_number = row_number()) %>%
-#     
-#     mutate(CFL5 = ifelse(player_game_number >= 5,
-#                          rollsumr(CF, 5, fill = NA),
-#                          0)) %>%
-#     mutate(CAL5 = ifelse(player_game_number >= 5,
-#                          rollsumr(CA, 5, fill = NA),
-#                          0)) %>%
-#     mutate(ESTOIL5 = ifelse(player_game_number >= 5,
-#                             rollsumr(ESTOI, 5, fill = NA),
-#                             0)) %>%
-#     
-#     mutate(CF60 = round((CFL5 / ESTOIL5) * 60, 1)) %>%
-#     mutate(CA60 = round((CAL5 / ESTOIL5) * 60, 1))
-#   
-#   shot_data %>%
-#     select(game_number.x, CF60, CA60) -> shot_data_condensed
-#   
-#   left_join(game_number, shot_data_condensed, by = c("number" = "game_number.x")) -> shot_data_condensed
-#   
-#   shot_data_condensed <- reshape2::melt(shot_data_condensed, id.var = "number") %>%
-#     rename(ShotType = variable, Shots = value)
-#   
-#   corsi_visual <- ggplot(shot_data_condensed, aes(x = number, y = Shots, color = `ShotType`)) +
-#     geom_line(size = 1.25) +
-#     geom_line(aes(y = 53.7), color = "#B2B2FF", size = 0.66, linetype = 'dotted') +
-#     
-#     labs(subtitle = paste("Shot Rates Per 60, 5-Game Moving Avg. \n",
-#                           
-#                           # round((sum(shot_data$CF) / sum(shot_data$ESTOI)) * 60, 1), ' CF60, ',
-#                           # 
-#                           # round((sum(shot_data$CA) / sum(shot_data$ESTOI)) * 60, 1), ' CA60, ',
-#                           
-#                           round((sum(table_corsi$CF) / (sum(table_corsi$CF) + sum(y_corsi_axis$CA_abs)) *100), 1),
-#                           ' CF%',
-#                           
-#                           ' (', round(CF_rel, 1),' rel)', sep = '')) +
-#     
-#     
-#     theme_few() +
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     guides(fill = guide_legend(reverse = TRUE)) +
-#     #red, black
-#     scale_color_manual(values=c("#7F7F7F", "#FE7F7E")) +
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#     scale_y_continuous(limits = c(20,80), expand = c(0, 0)) +
-#     theme(axis.title.x = element_blank()) 
-#   
-#   #if someone played 10 or fewer games
-#   if(NROW(table_toi$ES) < 11){
-#     
-#     table_corsi_2 <- melt(table_corsi, id.var="game_number.x") %>%
-#       rename(GameNumber = game_number.x, ShotType = variable, Shots = value)
-#     
-#     levels(table_corsi_2$Type)
-#     table_corsi_2$ShotType <- factor(table_corsi_2$ShotType, levels = rev(levels(table_corsi_2$ShotType)))
-#     
-#     corsi_visual <- ggplot(table_corsi_2[order(table_corsi_2$ShotType),],
-#                            aes(x = GameNumber, y = Shots, fill = ShotType)) +
-#       geom_bar(stat = "identity") +
-#       
-#       labs(subtitle = paste("Corsi For and Against \n",
-#                             round((sum(table_corsi$CF) / (sum(table_corsi$CF) + sum(y_corsi_axis$CA_abs)) *100), 1),
-#                             ' CF%',
-#                             
-#                             ' (', round(CF_rel, 1),' rel)', sep = '')) +
-#       
-#       theme_few() +
-#       theme(text = element_text(family = "Sweden Sans")) +
-#       theme(axis.title.x = element_blank()) +
-#       #flip the order of the legend so CF is on top and CA is on the bottom
-#       guides(fill = guide_legend(reverse = TRUE)) +
-#       #red, black
-#       scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-#       scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#       scale_y_continuous(limits = c(-20, 20), expand = c(0, 0))
-#     
-#     if(max(y_corsi_axis$CF, y_corsi_axis$CA_abs) > 20){
-#       corsi_visual <- corsi_visual + scale_y_continuous(limits=c(max(y_corsi_axis$CF, y_corsi_axis$CA_abs) * -1, max(y_corsi_axis$CF,y_corsi_axis$CA_abs)),
-#                                                         expand = c(0, 0))
-#     }
-#   }
-#   
-#   #Goals
-#   #creating an empty table - will merge goal data in later
-#   game_numbers <- tibble(c(1:52)) %>%
-#     set_names("game_number")
-#   
-#   #for people on for no goals
-#   empty_goals <- tibble(game_number = c(1:52), GF = 0, GA = 0)
-#   
-#   empty_goals_2 <- melt(empty_goals, id.var = "game_number") %>%
-#     rename(GameNumber = game_number, GoalType = variable, Goals = value)
-#   
-#   levels(empty_goals_2$GoalType)
-#   empty_goals_2$GoalType <- factor(empty_goals_2$GoalType, levels = rev(levels(empty_goals_2$GoalType)))
-#   #end of people on for no goals
-#   
-#   GF_data <- box_score_data_1920 %>%
-#     subset(grepl(player_name, GF_names)) %>%
-#     filter(game_situation == '5v5') %>%
-#     select(GF_names, gf_team_game_number) %>%
-#     mutate(count = 1) %>%
-#     select(-c(GF_names)) %>%
-#     group_by(gf_team_game_number) %>%
-#     summarise(GF = sum(count))
-#   
-#   GA_data <- box_score_data_1920 %>%
-#     subset(grepl(player_name, GA_names)) %>%
-#     filter(game_situation == '5v5') %>%
-#     select(GA_names, ga_team_game_number) %>%
-#     mutate(count = 1) %>%
-#     select(-c(GA_names)) %>%
-#     group_by(ga_team_game_number) %>%
-#     summarise(GA = sum(count))
-#   
-#   y_goals_axis <- merge(game_numbers, GF_data, by.x = "game_number",
-#                         by.y = "gf_team_game_number", all.x = TRUE)
-#   
-#   y_goals_axis <- merge(y_goals_axis, GA_data, by.x = "game_number",
-#                         by.y = "ga_team_game_number", all.x = TRUE)
-#   
-#   y_goals_axis <- y_goals_axis %>%
-#     mutate(GA2 = GA * -1) %>%
-#     select(-c(GA)) %>%
-#     rename(GA = GA2) %>%
-#     mutate(GA_abs = abs(GA))
-#   
-#   table_goals <- y_goals_axis %>%
-#     select(-c(GA_abs))
-#   
-#   table_goals_2 <- melt(table_goals, id.var = "game_number") %>%
-#     rename(GameNumber = game_number, GoalType = variable, Goals = value)
-#   
-#   levels(table_goals_2$GoalType)
-#   table_goals_2$GoalType <- factor(table_goals_2$GoalType, levels = rev(levels(table_goals_2$GoalType)))
-#   
-#   table_goals[is.na(table_goals)] <- 0
-#   y_goals_axis[is.na(y_goals_axis)] <- 0
-#   
-#   goals_visual <- ggplot(table_goals_2[order(table_goals_2$GoalType),],
-#                          aes(x = GameNumber, y = Goals, fill = GoalType)) +
-#     geom_bar(stat = "identity") +
-#     
-#     labs(subtitle = paste('5v5 Goals For and Against \n',
-#                           sum(table_goals$GF), ' GF  -  ',
-#                           sum(y_goals_axis$GA_abs), ' GA ',
-#                           #round(sum(table_goals$GF)/(sum(table_goals$GF) +  sum(y_goals_axis$GA_abs)), 2), ' GF% ',
-#                           sep = '')) +
-#     labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_swe'), sep = '') +
-#     
-#     theme_few() +
-#     theme(text = element_text(family = "Sweden Sans")) +
-#     guides(fill = guide_legend(reverse = TRUE)) +
-#     #red, black
-#     scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-#     scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#     scale_y_continuous(limits = c(-3, 3), expand = c(0, 0))
-#   
-#   # if the axis needs to be expanded
-#   if(max(y_goals_axis$GF, y_goals_axis$GA_abs) > 3){
-#     goals_visual <- goals_visual + scale_y_continuous(limits=c(max(y_goals_axis$GF, y_goals_axis$GA_abs) * -1, max(y_goals_axis$GF,y_goals_axis$GA_abs)),
-#                                                       expand = c(0, 0))
-#     
-#   }
-#   
-#   #if the player hasn't been on for a goal
-#   if(sum(y_goals_axis$GF) + sum(y_goals_axis$GA_abs) == 0) {
-#     
-#     goals_visual <- ggplot(empty_goals_2[order(empty_goals_2$GoalType),],
-#                            aes(x = GameNumber, y = Goals, fill = GoalType)) +
-#       geom_bar(stat = "identity") +
-#       labs(subtitle = paste('5v5 Goals For and Against \n',
-#                             0, ' GF  -  ',
-#                             0, ' GA ',
-#                             #round(sum(table_goals$GF)/(sum(table_goals$GF) +  sum(y_goals_axis$GA_abs)), 2), ' GF% ',
-#                             sep = '')) +
-#       labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_swe'), sep = '') +
-#       theme_few() +
-#       theme(text = element_text(family = "Sweden Sans")) +
-#       guides(fill = guide_legend(reverse = TRUE)) +
-#       #red, black
-#       scale_fill_manual(values=c("#FF7F7E", "#7F7F7F", "#7F7FFF")) +
-#       scale_x_continuous(limits = c(0,53), expand = c(0, 0)) +
-#       scale_y_continuous(limits = c(-3, 3), expand = c(0, 0))
-#     
-#   }
-#   
-#   #aliases for each of the visuals
-#   g2 <- ggplotGrob(toi_visual)
-#   g3 <- ggplotGrob(corsi_visual)
-#   g4 <- ggplotGrob(goals_visual)
-#   g5 <- ggplotGrob(points_visual)
-#   #old method - this broke after updating corsi visual to rolling average
-#   g <- rbind(g2, g5, g3, g4, size = "first")
-#   g$widths <- unit.pmax(g2$widths, g5$widths, g3$widths, g4$widths)
-#   grid.newpage()
-#   grid.draw(g)
-#   
-#   #use cowplot to align the plots now
-#   #g <- cowplot::plot_grid(g2, g5, g3, g4, ncol = 1, align = 'v', axis = 'lr')
-#   
-#   return(g)
-#   
-# }
-
-
-
