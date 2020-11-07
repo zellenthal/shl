@@ -47,14 +47,10 @@ box_score_data_master <- box_score_data_master %>%
                 
                 GA_player_teams = paste0(GA1_player_team, GA2_player_team, GA3_player_team,
                                          GA4_player_team, GA5_player_team, GA6_player_team))
-  
+ 
 
-# # Team Data (temporarily just the 19/20 season)
-# team_corsi_data_1920_team <- read.csv("team_corsi_data_1920_team.csv", stringsAsFactors = FALSE)
-# team_pp_data_1920 <- read.csv("team_pp_data_1920.csv", stringsAsFactors = FALSE)
-# team_pk_data_1920 <- read.csv("team_pk_data_1920.csv", stringsAsFactors = FALSE)
+#SHL - Team
 
-#team_goals_data_master <- read.csv("team_goals_data_master.csv", stringsAsFactors = FALSE)
 team_pp_data_master <- read.csv("team_pp_data_master.csv", stringsAsFactors = FALSE)
 team_pk_data_master <- read.csv("team_pk_data_master.csv", stringsAsFactors = FALSE)
 team_shotsfor_data_master <- read.csv("team_shotsfor_data_master.csv", stringsAsFactors = FALSE)
@@ -142,6 +138,7 @@ shl_playerdb_v2 <- read.csv("shl_player_db_v2.csv", stringsAsFactors = FALSE)
 ha_box_score_data_master <- read.csv("ha_box_score_data_all.csv", stringsAsFactors = FALSE)
 ha_player_game_logs_2021 <- read.csv("ha_player_game_logs_2021.csv", stringsAsFactors = FALSE)
 ha_player_db <- read.csv("ha_player_db.csv", stringsAsFactors = FALSE)
+ha_playerdb_v2 <- read.csv("ha_playerdb_v2.csv", stringsAsFactors = FALSE)
 
 nhl_abbrev <- c("ANA", "ARI", "BOS", "BUF", "CGY", "CAR", "CHI", "COL", "CBJ", "DAL", "DET", "EDM", "FLA", "LAK", "MIN", "MTL",
                 "NSH", "NJD", "NYI", "NYR", "OTT", "PHI", "PIT", "SJS", "STL", "TBL", "TOR", "VAN", "VGK", "WSH", "WPG")
@@ -780,7 +777,7 @@ player_card <- function(player_name, season_year) {
                           ' GF%)',
                           #round(sum(table_goals$GF)/(sum(table_goals$GF) +  sum(y_goals_axis$GA_abs)), 1), ' GF% ',
                           sep = '')) +
-    labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_swe'), sep = '') +
+    labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@SvengelskaHky'), sep = '') +
     
     theme_few() +
     theme(text = element_text(family = "Sweden Sans")) +
@@ -815,7 +812,7 @@ player_card <- function(player_name, season_year) {
                             0, ' GA ',
                             #round(sum(table_goals$GF)/(sum(table_goals$GF) +  sum(y_goals_axis$GA_abs)), 2), ' GF% ',
                             sep = '')) +
-      labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@zellenthal_swe'), sep = '') +
+      labs(caption = paste('data from shl.se & stats.swehockey.se', ' | ', '@SvengelskaHky'), sep = '') +
       theme_few() +
       theme(text = element_text(family = "Sweden Sans")) +
       guides(fill = guide_legend(reverse = TRUE)) +
@@ -2165,6 +2162,16 @@ player_profile_eng <- function(player_name) {
   
 }
 
+player_profile_psso <- function(player_name) {
+  
+  table <- `PS/SO` %>%
+    filter(Player == player_name) %>%
+    dplyr::select(Player, Season, Age, Team, G)
+  
+  return(table)
+  
+}
+
 # player_profile_ev_other <- function(player_name) {
 #   
 #   table <- `Empty Net` %>%
@@ -2273,6 +2280,61 @@ ha_player_profile_eng <- function(player_name) {
   
 }
 
+ha_player_profile_psso <- function(player_name) {
+  
+  table <- `PS/SO  ` %>%
+    filter(Player == player_name) %>%
+    dplyr::select(Player, Season, Age, Team, G)
+  
+  return(table)
+  
+}
+
+ha_player_profile_bio1 <- function(player_name) {
+  
+  # ep <- player_lookup_v2 %>%
+  #   dplyr::filter(swehockey == player_name) %>%
+  #   dplyr::distinct() %>%
+  #   dplyr::select(ep) %>%
+  #   .[,1]
+  
+  bio <- ha_playerdb_v2 %>%
+    dplyr::filter(swehockey == player_name) %>%
+    dplyr::select(-c(season, team, gp, age, age2)) %>%
+    dplyr::distinct()
+  
+  bio1 <- paste0(player_name, " | Pos: ", bio$pos[1])
+  
+  return(bio1)
+  
+}
+
+ha_player_profile_bio2 <- function(player_name) {
+  
+  # ep <- player_lookup_v2 %>%
+  #   dplyr::filter(swehockey == player_name) %>%
+  #   dplyr::distinct() %>%
+  #   dplyr::select(ep) %>%
+  #   .[,1]
+  
+  bio <- ha_playerdb_v2 %>%
+    dplyr::filter(swehockey == player_name) %>%
+    dplyr::select(-c(season, team, gp, age, age2)) %>%
+    dplyr::distinct()
+  
+  today <- lubridate::today() %>% lubridate::as_date()
+  
+  dob <- lubridate::as_date(bio$dob[1])
+  
+  age <- round(lubridate::time_length(today - dob, "year"), 1)
+  
+  bio2 <- paste0("Nationality: ", bio$nationality[1], " | DOB: ", dob, " | Age: ", age)
+  
+  return(bio2)
+  #return(dob)
+  
+}
+
 game_log <- function(player_name, season_year) {
   
   #toi
@@ -2287,22 +2349,48 @@ game_log <- function(player_name, season_year) {
                   Game = game, Date = date, TOI_EV = ESTOI, TOI_PP = PPTOI, TOI_SH = SHTOI) %>%
     dplyr::select(team_date, team_game, Date, Game, Player, Season, Team, TOI, TOI_EV, TOI_PP, TOI_SH)
   
+  team_games_participated <- toi %>%
+    select(team_game) %>% dplyr::distinct()
+  
   #shots
   shots <- player_shots_data_master %>%
     dplyr::filter(swehockey_name == player_name, season == season_year) %>%
     dplyr::select(SOG, SOG_EV, SOG_PP)
     
   #corsi
+  game_number_corsi <- tibble(c(team_games_participated$team_game)) %>% set_names('game_number')
+  
+  # corsi <- player_corsi_data_master %>%
+  #   dplyr::filter(swehockey_name == player_name, season == season_year) %>%
+  #   dplyr::select(game_number.x, CF, CA, CF._off) %>%
+  #   dplyr::mutate(CF_team = CF._off * 100) %>%
+  #   dplyr::mutate(`CF%` = (round((CF / (CF + CA)),3)) * 100) %>%
+  #   dplyr::mutate(`CF% Rel` = round(`CF%` - CF_team, 1)) %>%
+  #   dplyr::select(-c(CF._off, CF_team))
+  # 
+  # corsi <- merge(game_number_corsi, corsi, by.x = "game_number", by.y = "game_number.x", all.x = TRUE)
+  # corsi$CF[is.na(corsi$CF)] <- 0
+  # corsi$CA[is.na(corsi$CA)] <- 0
+  # corsi <- corsi %>%
+  #   dplyr::select(-game_number.x)
+  
   corsi <- player_corsi_data_master %>%
     dplyr::filter(swehockey_name == player_name, season == season_year) %>%
-    dplyr::select(CF, CA, CF._off) %>%
+    dplyr::select(game_number.x, CF, CA, CF._off)
+  
+  corsi <- merge(game_number_corsi, corsi, by.x = "game_number", by.y = "game_number.x", all.x = TRUE)
+  corsi$CF[is.na(corsi$CF)] <- 0
+  corsi$CA[is.na(corsi$CA)] <- 0
+  corsi$CF._off[is.na(corsi$CF._off)] <- 0
+  
+  corsi <- corsi %>%
     dplyr::mutate(CF_team = CF._off * 100) %>%
     dplyr::mutate(`CF%` = (round((CF / (CF + CA)),3)) * 100) %>%
     dplyr::mutate(`CF% Rel` = round(`CF%` - CF_team, 1)) %>%
-    dplyr::select(-c(CF._off, CF_team))
+    dplyr::select(-c(game_number, CF._off, CF_team))
   
-  team_games_participated <- toi %>%
-    select(team_game) %>% dplyr::distinct()
+  corsi$`CF%`[is.na(corsi$`CF%`)] <- 0
+  corsi$`CF% Rel`[is.na(corsi$`CF% Rel`)] <- 0
   
   #EV Scoring
   game_number_scoring <- tibble(c(team_games_participated$team_game)) %>% set_names('game_number')
@@ -2631,7 +2719,31 @@ game_log <- function(player_name, season_year) {
   #return(goals_ev)
   #return(summary)
   return(summary)
-  #return(GF)
+  #return(corsi)
+  
+}
+
+team_game_log <- function(team_name, season_year) {
+  
+  corsi <- team_corsi_data_master_team %>%
+    dplyr::filter(shlse_team_name == team_name, season == season_year) %>%
+    dplyr::select(date1, season, CF, CA, FF, FA) %>%
+    dplyr::mutate(`CF%` = (round((CF / (CF + CA)),3)) * 100,
+                  `FF%` = (round((FF / (FF + FA)),3)) * 100) %>%
+    dplyr::select(date1, season, CF, CA, `CF%`, FF, FA, `FF%`)
+  
+  shotsfor <- team_shotsfor_data_master %>%
+    dplyr::filter(shlse_team_name == team_name, season == season_year) %>%
+    dplyr::select(SOG, SOG_PP)
+  
+  shotsagainst <- team_shotsagainst_data_master %>%
+    dplyr::filter(shlse_team_name == team_name, season == season_year) %>%
+    dplyr::select(SOGA)
+  
+  
+  summary <- cbind(corsi, shotsfor, shotsagainst)
+  
+  return(summary)
   
 }
 
@@ -2667,7 +2779,9 @@ ui <- bootstrapPage(
   tags$head(
     #includeHTML(includeHTML("google-analytics.html")),
     tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css"),
-    tags$link(rel = "stylesheet", type = "text/css", href = "stylesheet.css")
+    tags$link(rel = "stylesheet", type = "text/css", href = "stylesheet.css"),
+    tags$meta(name = "title", content = "Svengelska Hockey | Swedish Hockey Stats Site"),
+    tags$meta(name = "description", content = "Miscellaneous stats and visualizations on Swedish hockey. Contains player & team data on the Swedish Hockey League and HockeyAllsvenskan.")
   ),
   
   #tags$head(includeHTML("google-analytics.html")),
@@ -2705,8 +2819,9 @@ ui <- bootstrapPage(
                 tags$li("Eliteprospects - ", a(target = "_blank", "eliteprospects.com", href = "https://eliteprospects.com"))
               ),
              hr(),
-             p("You can find me on Twitter at ", a(target = "_blank", "@zellenthal_swe",
-                                                   href = "https://twitter.com/zellenthal_swe"))
+             p("You can find me on Twitter at ", a(target = "_blank", "@SvengelskaHky",
+                                                   href = "https://twitter.com/SvengelskaHky"), " or ", a(target = "_blank", "@zellenthal_swe",
+                                                                                                      href = "https://twitter.com/zellenthal_swe"))
     ),
     
     navbarMenu("Statistics",
@@ -2768,14 +2883,14 @@ ui <- bootstrapPage(
                titlePanel("SHL - Player Profile"),
                br(),
                fluidRow(column(3, selectInput("player_profile", "Select Player", choices = sort(unique(as.character(EV$Player))), selected = "Lucas Raymond")),
-                        column(2, selectInput("season_gamelog", "Season", choices = c("17/18", "18/19", "19/20", "20/21"), selected = "20/21")),
-                        div(column(2, submitButton(text = "Submit"), style = "margin-top: 29px"))),
+                        #column(2, selectInput("season_gamelog", "Season", choices = c("17/18", "18/19", "19/20", "20/21"), selected = "20/21")),
+                        div(column(2, submitButton(text = "Submit"), style = "margin-top: 29px; margin-left: 0px"))),
                         #div(helpText(paste0("Season only apples to \n", "Player Card and Game Log")), style = "margin-top: 29px")),
               
                h4(textOutput("player_profile_bio1")),
                h6(textOutput("player_profile_bio2")),
                
-               hr(),
+               br(),
     tabsetPanel(
       tabPanel("Statistics", fluid = TRUE,
                
@@ -2787,32 +2902,37 @@ ui <- bootstrapPage(
                #fluidRow(DT::dataTableOutput("player_profile_5v5_v2")),
               
                h4("5v5"),
-               fluidRow(DT::dataTableOutput("player_profile_5v5")),
+               fluidRow(column(12,DT::dataTableOutput("player_profile_5v5"))),
                
                br(),
                
                h4("Even Strength"),
-               fluidRow(DT::dataTableOutput("player_profile_ev")),
+               fluidRow(column(12,DT::dataTableOutput("player_profile_ev"))),
                
                br(),
                
                h4("Powerplay"),
-               fluidRow(DT::dataTableOutput("player_profile_pp")),
+               fluidRow(column(12,DT::dataTableOutput("player_profile_pp"))),
                
                br(),
                
                h4("All Situations"),
-               fluidRow(DT::dataTableOutput("player_profile_all")),
+               fluidRow(column(12,DT::dataTableOutput("player_profile_all"))),
                
                br(),
                
                h4("Shorthanded"),
-               fluidRow(DT::dataTableOutput("player_profile_sh")),
+               fluidRow(column(10,DT::dataTableOutput("player_profile_sh"))),
                
                br(),
                
                h4("Empty Net"),
-               fluidRow(DT::dataTableOutput("player_profile_eng")),
+               fluidRow(column(8,DT::dataTableOutput("player_profile_eng"))),
+               
+               br(),
+               
+               h4("PS/SO"),
+               fluidRow(column(4,DT::dataTableOutput("player_profile_psso"))),
                
                br(), br()
                
@@ -2821,15 +2941,21 @@ ui <- bootstrapPage(
 
       tabPanel("Player Card", fluid = TRUE,
                br(),
-      
-              fluidRow(column(8, plotOutput("player_card_v2"))),
+               
+               fluidRow(column(2, selectInput("player_card_profile_season", "Season", choices = c("17/18", "18/19", "19/20", "20/21"), selected = "20/21")),
+                        div(column(2, submitButton(text = "Submit"), style = "margin-top: 29px"))),
+               fluidRow(column(8, plotOutput("player_card_v2"))),
               
-              br(), br(),
+               br(), br(),
               ),
       
 
       tabPanel("Game Log", fluid = TRUE,
                br(),
+               
+               fluidRow(column(2, selectInput("player_card_gamelog_season", "Season", choices = c("17/18", "18/19", "19/20", "20/21"), selected = "20/21")),
+                        div(column(2, submitButton(text = "Submit"), style = "margin-top: 29px"))),
+               
                # fluidRow(column(3, selectInput("player_gamelog", "Select Player", choices = sort(unique(as.character(EV$Player))), selected = "Marek Hrivik")),
                #          column(2, selectInput("season_gamelog", "Season", choices = c("17/18", "18/19", "19/20", "20/21"), selected = "20/21")),
                #          div(column(2, submitButton(text = "Submit"), style = "margin-top: 29px")))
@@ -2921,7 +3047,7 @@ ui <- bootstrapPage(
                 fluidRow(
                   column(2, selectInput("stats_situation_team", "Game Situation", choices = c("EV ", "PP ", "SH ", "5v5 "), selected = "EV ")),
                   column(2, selectInput("stats_team_team", "Team", choices = c("All", sort(unique(as.character(`EV `$Team)))), selected = "All")),
-                  column(2, selectInput("stats_season_team", "Season", choices = c("17/18", "18/19", "19/20", "20/21"), selected = "20/21")),
+                  column(2, selectInput("stats_season_team", "Season", choices = c("All", "17/18", "18/19", "19/20", "20/21"), selected = "20/21")),
                   div(column(2, submitButton(text = "Submit"), style = "margin-top: 28px"))),
                 #),
                 
@@ -2951,18 +3077,19 @@ ui <- bootstrapPage(
                         
                         column(2, selectInput("stats_team_hap", "Team", choices = c("All", sort(unique(as.character(`EV  `$Team)))), selected = "All")),
                         
-                        column(2, selectInput("stats_pos_hap", "Position", choices = c("All", "F", "D"), selected = "All"))),
+                        column(2, selectInput("stats_pos_hap", "Position", choices = c("All", "F", "D"), selected = "All")),
+                        
+                        column(1, numericInput("ha_min_age", "Min Age", value = 15)),
+                        column(1, numericInput("ha_max_age", "Max Age", value = 50))),
                
                fluidRow(#column(2, selectInput("stats_player", "Player", choices = c("All", sort(unique(as.character(EV$Player))))), selected = "All", multiple = FALSE),
                  
                  #column(2, selectInput("stats_player2", "Player2", choices = c("All", sort(unique(as.character(EV$Player)))), selected = "All", multiple = TRUE, selectize = TRUE)),
                  
                  column(2, selectInput("stats_season_hap", "Season", choices = c("All", "19/20", "20/21"), selected = "20/21")),
-                 
                  column(2, numericInput("stats_minGP_hap", "Min GP", value = 0)),
-                 
+                 column(2, selectInput("ha_nationality", "Nationality", choices = c("All", sort(unique(as.character(`EV  `$Nationality)))))),
                  column(2, selectInput("nhl_rights_hap", "NHL Rights", choices = c("All", nhl_abbrev[1:31]), selected = "All")),
-                 
                  column(2, selectizeInput("stats_player2_hap", "Player", choices = sort(unique(as.character(`EV  `$Player))), multiple = TRUE))),
 
                
@@ -2993,37 +3120,42 @@ ui <- bootstrapPage(
                #fluidRow(column(2, submitButton(text = "Submit"))),
                #br(),
                
-               #h4(textOutput("player_profile_bio1")),
-               #h6(textOutput("player_profile_bio2")),
+               # h4(textOutput("ha_player_profile_bio1")),
+               # h6(textOutput("ha_player_profile_bio2")),
                
                br(),
                h4("5v5"),
-               fluidRow(DT::dataTableOutput("ha_player_profile_5v5")),
+               fluidRow(column(10,DT::dataTableOutput("ha_player_profile_5v5"))),
                
                br(),
                
                h4("Even Strength"),
-               fluidRow(DT::dataTableOutput("ha_player_profile_ev")),
+               fluidRow(column(10,DT::dataTableOutput("ha_player_profile_ev"))),
                
                br(),
                
                h4("Powerplay"),
-               fluidRow(DT::dataTableOutput("ha_player_profile_pp")),
+               fluidRow(column(10,DT::dataTableOutput("ha_player_profile_pp"))),
                
                br(),
                
                h4("All Situations"),
-               fluidRow(DT::dataTableOutput("ha_player_profile_all")),
+               fluidRow(column(10,DT::dataTableOutput("ha_player_profile_all"))),
                
                br(),
                
                h4("Shorthanded"),
-               fluidRow(DT::dataTableOutput("ha_player_profile_sh")),
+               fluidRow(column(10,DT::dataTableOutput("ha_player_profile_sh"))),
                
                br(),
                
                h4("Empty Net"),
-               fluidRow(DT::dataTableOutput("ha_player_profile_eng")),
+               fluidRow(column(10,DT::dataTableOutput("ha_player_profile_eng"))),
+               
+               br(),
+               
+               h4("PS/SO"),
+               fluidRow(column(4,DT::dataTableOutput("ha_player_profile_psso"))),
                
                br(), br()
                
@@ -3410,6 +3542,18 @@ server <- function(input, output, session) {
       stats_data_hap <- stats_data_hap[stats_data_hap$`NHL Rights` == input$nhl_rights_hap,]
     }
     
+    if (input$ha_nationality != "All") {
+      stats_data_hap <- stats_data_hap[stats_data_hap$Nationality == input$ha_nationality,]
+    }
+    
+    if (input$ha_min_age != 15) {
+      stats_data_hap <- stats_data_hap[stats_data_hap$Age >= input$ha_min_age,]
+    }
+    
+    if (input$ha_max_age != 50) {
+      stats_data_hap <- stats_data_hap[stats_data_hap$Age <= input$ha_max_age,]
+    }
+    
     # if (input$stats_minGP != 0) {
     #   stats_data <- stats_data[stats_data$GP >= input$stats_minGP,]
     # }
@@ -3455,8 +3599,8 @@ server <- function(input, output, session) {
     lengthMenu = c(25, 50, 100, 500),
     
     #center character columns
-    columnDefs = list(list(className = 'dt-center', targets = c(2,4,5,6)),
-                      list(targets = c(-1,5), visible = FALSE)),
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5,6,7)),
+                      list(targets = c(-1,-2,6), visible = FALSE)),
     
     #order the table by GP - applies to all tables
     order = list(list(1, 'asc')),
@@ -3501,7 +3645,8 @@ server <- function(input, output, session) {
   #Player Card output
   output$player_card_v2 <- renderPlot({
     
-    player_card(player_profile_selected(), season_selected())
+    #player_card(player_profile_selected(), season_selected())
+    player_card(player_profile_selected(), input$player_card_profile_season)
     #player_card(player_profile_selected(), input$card_season)
     
   },
@@ -3785,6 +3930,34 @@ server <- function(input, output, session) {
   
   ))
   
+  #PS/SO
+  output$player_profile_psso <- DT::renderDataTable(DT::datatable({
+    
+    #player_profile_eng(input$player_profile)
+    player_profile_psso(player_profile_selected())
+    
+  },
+  
+  extensions = 'FixedHeader',
+  options = list(
+    
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5))),
+    
+    order = list(list(2, 'asc')),
+    #dom = 'ltipr',
+    dom = 't',
+    fixedHeader = TRUE,
+    
+    initComplete = JS(
+      "function(settings, json) {",
+      #"$(this.api().table().header()).css({'background-color': '#3d3d3d', 'color': '#fff'});",
+      "$(this.api().table().header()).css({'background-color': '#035292', 'color': '#fff'});",
+      "}")),
+  
+  class = 'row-border stripe compact hover nowrap',
+  
+  ))
+  
   #HA Player Profile output
   #5v5
   output$ha_player_profile_5v5 <- DT::renderDataTable(DT::datatable({
@@ -3796,8 +3969,8 @@ server <- function(input, output, session) {
   extensions = 'FixedHeader',
   options = list(
     
-    columnDefs = list(list(className = 'dt-center', targets = c(2,4,5)),
-                      list(targets = c(-1,4,5,6), visible = FALSE)),
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5,6)),
+                      list(targets = c(-1,-2,5,6,7), visible = FALSE)),
     
     order = list(list(2, 'asc')),
     #dom = 'ltipr',
@@ -3824,8 +3997,8 @@ server <- function(input, output, session) {
   extensions = 'FixedHeader',
   options = list(
     
-    columnDefs = list(list(className = 'dt-center', targets = c(2,4,5)),
-                      list(targets = c(-1,4,5,6), visible = FALSE)),
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5,6)),
+                      list(targets = c(-1,-2,5,6,7), visible = FALSE)),
     
     order = list(list(2, 'asc')),
     #dom = 'ltipr',
@@ -3852,8 +4025,8 @@ server <- function(input, output, session) {
   extensions = 'FixedHeader',
   options = list(
     
-    columnDefs = list(list(className = 'dt-center', targets = c(2,4,5)),
-                      list(targets = c(-1,4,5,6), visible = FALSE)),
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5,6)),
+                      list(targets = c(-1,-2,5,6,7), visible = FALSE)),
     
     order = list(list(2, 'asc')),
     #dom = 'ltipr',
@@ -3880,8 +4053,8 @@ server <- function(input, output, session) {
   extensions = 'FixedHeader',
   options = list(
     
-    columnDefs = list(list(className = 'dt-center', targets = c(2,4,5)),
-                      list(targets = c(-1,4,5,6), visible = FALSE)),
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5,6)),
+                      list(targets = c(-1,-2,5,6,7), visible = FALSE)),
     
     order = list(list(2, 'asc')),
     #dom = 'ltipr',
@@ -3908,8 +4081,8 @@ server <- function(input, output, session) {
   extensions = 'FixedHeader',
   options = list(
     
-    columnDefs = list(list(className = 'dt-center', targets = c(2,4,5)),
-                      list(targets = c(-1,4,5,6), visible = FALSE)),
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5,6)),
+                      list(targets = c(-1,-2,5,6,7), visible = FALSE)),
     
     order = list(list(2, 'asc')),
     #dom = 'ltipr',
@@ -3926,7 +4099,7 @@ server <- function(input, output, session) {
   
   ))
   
-  #EV
+  #ENG
   output$ha_player_profile_eng <- DT::renderDataTable(DT::datatable({
     
     ha_player_profile_eng(input$player_profile_ha)
@@ -3936,8 +4109,35 @@ server <- function(input, output, session) {
   extensions = 'FixedHeader',
   options = list(
     
-    columnDefs = list(list(className = 'dt-center', targets = c(2,4,5)),
-                      list(targets = c(-1,4,5,6), visible = FALSE)),
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5,6)),
+                      list(targets = c(-1,-2,5,6,7), visible = FALSE)),
+    
+    order = list(list(2, 'asc')),
+    #dom = 'ltipr',
+    dom = 't',
+    fixedHeader = TRUE,
+    
+    initComplete = JS(
+      "function(settings, json) {",
+      #"$(this.api().table().header()).css({'background-color': '#3d3d3d', 'color': '#fff'});",
+      "$(this.api().table().header()).css({'background-color': '#035292', 'color': '#fff'});",
+      "}")),
+  
+  class = 'row-border stripe compact hover nowrap',
+  
+  ))
+  
+  #PS/SO
+  output$ha_player_profile_psso <- DT::renderDataTable(DT::datatable({
+    
+    ha_player_profile_psso(input$player_profile_ha)
+    
+  },
+  
+  extensions = 'FixedHeader',
+  options = list(
+    
+    columnDefs = list(list(className = 'dt-center', targets = c(2,3,5))),
     
     order = list(list(2, 'asc')),
     #dom = 'ltipr',
@@ -3958,7 +4158,8 @@ server <- function(input, output, session) {
   output$gamelog <- DT::renderDataTable(DT::datatable({
 
     #game_log(input$player_gamelog, input$season_gamelog)
-    game_log(player_profile_selected(), season_selected())
+    #game_log(player_profile_selected(), season_selected())
+    game_log(player_profile_selected(), input$player_card_gamelog_season)
     
     #gamelog_download <- game_log(player_profile_selected(), season_selected())
     #gamelog <- game_log(input$player_profile, input$season_gamelog)
@@ -3992,6 +4193,19 @@ server <- function(input, output, session) {
   class = 'row-border stripe compact hover nowrap',
 
   ))
+  
+  
+  # output$ha_player_profile_bio1 <- renderText({
+  #   
+  #   ha_player_profile_bio1(input$ha_player_profile_bio1)
+  #   
+  # })
+  # 
+  # output$ha_player_profile_bio2 <- renderText({
+  #   
+  #   ha_player_profile_bio2(input$ha_player_profile_bio2)
+  #   
+  # })
   
 }
 
